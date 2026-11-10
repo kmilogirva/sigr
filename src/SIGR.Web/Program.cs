@@ -25,6 +25,7 @@ builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ReservaService>();
+builder.Services.AddScoped<CajaService>();
 
 var app = builder.Build();
 

@@ -1,0 +1,81 @@
+@page "/caja"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Administrador")]
+@inject CajaService CajaSvc
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Caja</PageTitle>
+<h1>Cierre de caja</h1>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><label class="form-label">Fecha</label>
+        <input type="date" class="form-control" @bind="fecha" @bind:after="Cargar" max="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+</div>
+
+@if (resumen is not null)
+{
+    <div class="row text-center mb-3">
+        <div class="col"><div class="card"><div class="card-body"><div class="text-muted">Ventas</div><h4>@resumen.TotalVentas.ToString("C0")</h4></div></div></div>
+        <div class="col"><div class="card"><div class="card-body"><div class="text-muted">Efectivo</div><h4>@resumen.Efectivo.ToString("C0")</h4></div></div></div>
+        <div class="col"><div class="card"><div class="card-body"><div class="text-muted">Tarjeta / transf.</div><h4>@resumen.Otros.ToString("C0")</h4></div></div></div>
+        <div class="col"><div class="card"><div class="card-body"><div class="text-muted">Pagos</div><h4>@resumen.NumPagos</h4></div></div></div>
+    </div>
+
+    @if (cierre is not null)
+    {
+        <div class="alert alert-secondary">Día cerrado por <strong>@cierre.Usuario</strong>. Base inicial: @cierre.BaseInicial.ToString("C0"). @cierre.Observaciones</div>
+    }
+    else
+    {
+        @if (resumen.PedidosAbiertos > 0) { <div class="alert alert-warning">Hay @resumen.PedidosAbiertos pedido(s) abiertos este día.</div> }
+        <div class="row g-2 mb-4">
+            <div class="col-md-3"><input type="number" min="0" class="form-control" placeholder="Base inicial" @bind="baseInicial" /></div>
+            <div class="col-md-5"><input class="form-control" placeholder="Observaciones" maxlength="200" @bind="obs" /></div>
+            <div class="col-md-2"><button class="btn btn-danger" @onclick="Cerrar">Cerrar caja</button></div>
+        </div>
+    }
+}
+
+<h3>Historial de cierres</h3>
+<table class="table table-sm">
+    <thead><tr><th>Fecha</th><th>Responsable</th><th class="text-end">Base</th><th class="text-end">Ventas</th><th class="text-end">Efectivo</th><th class="text-end">Tarjeta/transf.</th></tr></thead>
+    @foreach (var c in historial)
+    {
+        <tr><td>@c.Fecha.ToString("dd/MM/yyyy")</td><td>@c.Usuario</td><td class="text-end">@c.BaseInicial.ToString("N0")</td>
+            <td class="text-end">@c.TotalVentas.ToString("N0")</td><td class="text-end">@c.TotalEfectivo.ToString("N0")</td><td class="text-end">@c.TotalTarjeta.ToString("N0")</td></tr>
+    }
+</table>
+
+@code {
+    DateTime fecha = DateTime.Today;
+    CajaService.ResumenDia? resumen;
+    CierreCaja? cierre;
+    List<CierreCaja> historial = new();
+    decimal baseInicial;
+    string? obs, mensaje;
+    bool esError;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    async Task Cargar()
+    {
+        resumen = await CajaSvc.ResumenAsync(fecha);
+        cierre = await CajaSvc.CierreDelDiaAsync(fecha);
+        historial = await CajaSvc.HistorialAsync();
+    }
+
+    async Task Cerrar()
+    {
+        try
+        {
+            var u = (await Auth.GetAuthenticationStateAsync()).User;
+            var id = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            await CajaSvc.CerrarAsync(fecha, id, baseInicial, string.IsNullOrWhiteSpace(obs) ? null : obs);
+            mensaje = "Caja cerrada correctamente."; esError = false;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { mensaje = ex.Message; esError = true; }
+        await Cargar();
+    }
+}
