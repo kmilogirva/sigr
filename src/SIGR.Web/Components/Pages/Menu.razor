@@ -1,6 +1,6 @@
 @page "/menu"
 @rendermode InteractiveServer
-@inject MenuService Menu
+@inject MenuService MenuSvc
 
 <PageTitle>Menú</PageTitle>
 <h1>Menú digital</h1>
@@ -26,5 +26,5 @@ else
 
 @code {
     List<Plato>? platos;
-    protected override async Task OnInitializedAsync() => platos = await Menu.PlatosAsync(soloDisponibles: true);
+    protected override async Task OnInitializedAsync() => platos = await MenuSvc.PlatosAsync(soloDisponibles: true);
 }
