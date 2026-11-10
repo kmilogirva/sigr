@@ -1,0 +1,107 @@
+@page "/admin/menu"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Administrador")]
+@inject MenuService Menu
+
+<PageTitle>Administrar menú</PageTitle>
+<h1>Administrar menú</h1>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert alert-info">@mensaje</div> }
+
+<div class="row">
+<div class="col-lg-4">
+    <h3>Categorías</h3>
+    <EditForm Model="cat" OnValidSubmit="GuardarCat" FormName="cat">
+        <DataAnnotationsValidator />
+        <div class="mb-2"><InputText class="form-control" @bind-Value="cat.Nombre" placeholder="Nombre" /></div>
+        <div class="mb-2"><InputText class="form-control" @bind-Value="cat.Descripcion" placeholder="Descripción" /></div>
+        <div class="form-check mb-2"><InputCheckbox class="form-check-input" @bind-Value="cat.Activa" /> <label class="form-check-label">Activa</label></div>
+        <button class="btn btn-primary btn-sm">@(cat.CategoriaId == 0 ? "Crear" : "Actualizar")</button>
+        @if (cat.CategoriaId != 0) { <button type="button" class="btn btn-link btn-sm" @onclick="() => cat = new()">Cancelar</button> }
+    </EditForm>
+    <table class="table table-sm mt-3">
+        @foreach (var c in categorias)
+        {
+            <tr>
+                <td>@c.Nombre @if (!c.Activa) { <span class="badge bg-secondary">inactiva</span> }</td>
+                <td class="text-end">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => cat = Clonar(c)">Editar</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => EliminarCat(c.CategoriaId)">Borrar</button>
+                </td>
+            </tr>
+        }
+    </table>
+</div>
+
+<div class="col-lg-8">
+    <h3>Platos</h3>
+    <EditForm Model="plato" OnValidSubmit="GuardarPlato" FormName="plato">
+        <div class="row g-2 mb-2">
+            <div class="col-md-4"><InputText class="form-control" @bind-Value="plato.Nombre" placeholder="Nombre" required /></div>
+            <div class="col-md-3"><InputSelect class="form-select" @bind-Value="plato.CategoriaId">
+                <option value="0">Categoría...</option>
+                @foreach (var c in categorias) { <option value="@c.CategoriaId">@c.Nombre</option> }
+            </InputSelect></div>
+            <div class="col-md-2"><InputNumber class="form-control" @bind-Value="plato.Precio" placeholder="Precio" /></div>
+            <div class="col-md-3 pt-1"><div class="form-check"><InputCheckbox class="form-check-input" @bind-Value="plato.Disponible" /> <label class="form-check-label">Disponible</label></div></div>
+        </div>
+        <div class="mb-2"><InputText class="form-control" @bind-Value="plato.Descripcion" placeholder="Descripción" /></div>
+        <button class="btn btn-primary btn-sm">@(plato.PlatoId == 0 ? "Crear plato" : "Actualizar plato")</button>
+        @if (plato.PlatoId != 0) { <button type="button" class="btn btn-link btn-sm" @onclick="() => plato = new()">Cancelar</button> }
+    </EditForm>
+    <table class="table table-sm mt-3">
+        <thead><tr><th>Plato</th><th>Categoría</th><th class="text-end">Precio</th><th></th><th></th></tr></thead>
+        @foreach (var p in platos)
+        {
+            <tr>
+                <td>@p.Nombre</td><td>@p.Categoria</td><td class="text-end">@p.Precio.ToString("N0")</td>
+                <td>@if (!p.Disponible) { <span class="badge bg-warning text-dark">agotado</span> }</td>
+                <td class="text-end">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => plato = Clonar(p)">Editar</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => EliminarPlato(p.PlatoId)">Borrar</button>
+                </td>
+            </tr>
+        }
+    </table>
+</div>
+</div>
+
+@code {
+    List<Categoria> categorias = new();
+    List<Plato> platos = new();
+    Categoria cat = new();
+    Plato plato = new();
+    string? mensaje;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    async Task Cargar() { categorias = await Menu.CategoriasAsync(); platos = await Menu.PlatosAsync(); }
+
+    static Categoria Clonar(Categoria c) => new() { CategoriaId = c.CategoriaId, Nombre = c.Nombre, Descripcion = c.Descripcion, Activa = c.Activa };
+    static Plato Clonar(Plato p) => new() { PlatoId = p.PlatoId, CategoriaId = p.CategoriaId, Nombre = p.Nombre, Descripcion = p.Descripcion, Precio = p.Precio, Disponible = p.Disponible };
+
+    async Task GuardarCat()
+    {
+        if (string.IsNullOrWhiteSpace(cat.Nombre)) { mensaje = "El nombre de la categoría es obligatorio."; return; }
+        try { await Menu.GuardarCategoriaAsync(cat); mensaje = "Categoría guardada."; cat = new(); }
+        catch (Microsoft.Data.SqlClient.SqlException) { mensaje = "Ya existe una categoría con ese nombre."; }
+        await Cargar();
+    }
+
+    async Task EliminarCat(int id)
+    {
+        mensaje = await Menu.EliminarCategoriaAsync(id) ? "Categoría eliminada." : "No se puede borrar: tiene platos asociados.";
+        await Cargar();
+    }
+
+    async Task GuardarPlato()
+    {
+        if (string.IsNullOrWhiteSpace(plato.Nombre) || plato.CategoriaId == 0) { mensaje = "Nombre y categoría son obligatorios."; return; }
+        if (plato.Precio < 0) { mensaje = "El precio no puede ser negativo."; return; }
+        try { await Menu.GuardarPlatoAsync(plato); mensaje = "Plato guardado."; plato = new(); }
+        catch (Microsoft.Data.SqlClient.SqlException) { mensaje = "Ya existe un plato con ese nombre en la categoría."; }
+        await Cargar();
+    }
+
+    async Task EliminarPlato(int id) { mensaje = await Menu.EliminarPlatoAsync(id); await Cargar(); }
+}

@@ -1,0 +1,96 @@
+@page "/reservas"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ReservaService ReservaSvc
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Reservas</PageTitle>
+<h1>Reservas</h1>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
+
+@if (esCliente)
+{
+    <div class="card mb-4"><div class="card-body">
+        <h5>Nueva reserva</h5>
+        <div class="row g-2">
+            <div class="col-md-3"><label class="form-label">Fecha y hora</label>
+                <input type="datetime-local" class="form-control" @bind="fecha" @bind:after="BuscarMesas" /></div>
+            <div class="col-md-2"><label class="form-label">Personas</label>
+                <input type="number" min="1" max="12" class="form-control" @bind="personas" @bind:after="BuscarMesas" /></div>
+            <div class="col-md-3"><label class="form-label">Mesa disponible</label>
+                <select class="form-select" @bind="mesaSel">
+                    <option value="0">Seleccione...</option>
+                    @foreach (var m in mesas) { <option value="@m.MesaId">Mesa @m.Numero (@m.Capacidad pers.)</option> }
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Observaciones</label>
+                <input class="form-control" maxlength="200" @bind="obs" /></div>
+        </div>
+        <button class="btn btn-primary mt-3" @onclick="Crear" disabled="@(mesaSel == 0)">Reservar</button>
+    </div></div>
+}
+
+<table class="table align-middle">
+    <thead><tr><th>Fecha</th>@if (!esCliente) { <th>Cliente</th> }<th>Mesa</th><th>Personas</th><th>Estado</th><th>Obs.</th><th></th></tr></thead>
+    @foreach (var r in reservas)
+    {
+        <tr>
+            <td>@r.FechaHora.ToString("dd/MM/yyyy HH:mm")</td>
+            @if (!esCliente) { <td>@r.Cliente</td> }
+            <td>@r.NumeroMesa</td><td>@r.NumPersonas</td>
+            <td><span class="badge @Color(r.Estado)">@r.Estado</span></td><td>@r.Observaciones</td>
+            <td class="text-end">
+                @if (r.Estado is "Pendiente" or "Confirmada")
+                {
+                    @if (!esCliente && r.Estado == "Pendiente") { <button class="btn btn-outline-success btn-sm" @onclick='() => Cambiar(r.ReservaId, "Confirmada")'>Confirmar</button> }
+                    @if (!esCliente && r.Estado == "Confirmada") { <button class="btn btn-outline-primary btn-sm" @onclick='() => Cambiar(r.ReservaId, "Completada")'>Completar</button> }
+                    <button class="btn btn-outline-danger btn-sm" @onclick='() => Cambiar(r.ReservaId, "Cancelada")'>Cancelar</button>
+                }
+            </td>
+        </tr>
+    }
+    @if (!reservas.Any()) { <tr><td colspan="7" class="text-center text-muted">No hay reservas.</td></tr> }
+</table>
+
+@code {
+    List<Reserva> reservas = new();
+    List<Mesa> mesas = new();
+    bool esCliente;
+    int usuarioId, personas = 2, mesaSel;
+    DateTime fecha = DateTime.Today.AddDays(1).AddHours(20);
+    string? obs, mensaje;
+    bool esError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        usuarioId = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        esCliente = u.IsInRole("Cliente");
+        await Cargar();
+        if (esCliente) await BuscarMesas();
+    }
+
+    async Task Cargar() => reservas = await ReservaSvc.ListarAsync(esCliente ? usuarioId : null);
+
+    async Task BuscarMesas() { mesas = await ReservaSvc.MesasDisponiblesAsync(fecha, personas); mesaSel = 0; }
+
+    async Task Crear()
+    {
+        try
+        {
+            await ReservaSvc.CrearAsync(usuarioId, mesaSel, fecha, personas, string.IsNullOrWhiteSpace(obs) ? null : obs);
+            mensaje = "Reserva registrada. Queda pendiente de confirmación."; esError = false; obs = null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { mensaje = ex.Message; esError = true; }
+        catch (Microsoft.Data.SqlClient.SqlException) { mensaje = "Ese horario exacto ya tiene un registro para la mesa; elige otra hora o mesa."; esError = true; }
+        await Cargar(); await BuscarMesas();
+    }
+
+    async Task Cambiar(int id, string estado) { await ReservaSvc.CambiarEstadoAsync(id, estado, esCliente ? usuarioId : null); await Cargar(); await (esCliente ? BuscarMesas() : Task.CompletedTask); }
+
+    static string Color(string e) => e switch
+    {
+        "Pendiente" => "bg-warning text-dark", "Confirmada" => "bg-success",
+        "Completada" => "bg-primary", _ => "bg-secondary"
+    };
+}

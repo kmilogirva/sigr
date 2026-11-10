@@ -1,0 +1,30 @@
+@page "/menu"
+@rendermode InteractiveServer
+@inject MenuService MenuSvc
+
+<PageTitle>Menú</PageTitle>
+<h1>Menú digital</h1>
+
+@if (platos is null) { <p>Cargando...</p> }
+else
+{
+    foreach (var g in platos.GroupBy(p => p.Categoria))
+    {
+        <h3 class="mt-4">@g.Key</h3>
+        <div class="row">
+        @foreach (var p in g)
+        {
+            <div class="col-md-4 mb-3"><div class="card h-100"><div class="card-body">
+                <h5 class="card-title">@p.Nombre</h5>
+                <p class="card-text text-muted">@p.Descripcion</p>
+                <strong>@p.Precio.ToString("C0")</strong>
+            </div></div></div>
+        }
+        </div>
+    }
+}
+
+@code {
+    List<Plato>? platos;
+    protected override async Task OnInitializedAsync() => platos = await MenuSvc.PlatosAsync(soloDisponibles: true);
+}

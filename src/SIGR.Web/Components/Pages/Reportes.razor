@@ -1,0 +1,44 @@
+@page "/reportes"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Administrador")]
+@inject CajaService CajaSvc
+
+<PageTitle>Reportes</PageTitle>
+<h1>Reportes de ventas</h1>
+
+<div class="mb-3">
+    <label class="form-label me-2">Últimos</label>
+    <select class="form-select d-inline w-auto" @bind="dias" @bind:after="Cargar">
+        <option value="7">7 días</option><option value="30">30 días</option><option value="90">90 días</option>
+    </select>
+</div>
+
+<h3>Ventas diarias</h3>
+<table class="table table-sm">
+    <thead><tr><th>Fecha</th><th class="text-end">Pedidos</th><th class="text-end">Total</th><th style="width:40%"></th></tr></thead>
+    @foreach (var v in ventas)
+    {
+        <tr><td>@v.Fecha.ToString("dd/MM/yyyy")</td><td class="text-end">@v.NumPedidos</td><td class="text-end">@v.TotalVentas.ToString("C0")</td>
+            <td><div class="bg-primary" style="height:12px;width:@(max == 0 ? 0 : (int)(v.TotalVentas * 100 / max))%"></div></td></tr>
+    }
+    @if (!ventas.Any()) { <tr><td colspan="4" class="text-muted text-center">Sin ventas en el periodo.</td></tr> }
+    <tfoot><tr><th>Total</th><th class="text-end">@ventas.Sum(v => v.NumPedidos)</th><th class="text-end">@ventas.Sum(v => v.TotalVentas).ToString("C0")</th><th></th></tr></tfoot>
+</table>
+
+<h3 class="mt-4">Platos más vendidos</h3>
+<table class="table table-sm">
+    <thead><tr><th>Plato</th><th>Categoría</th><th class="text-end">Unidades</th><th class="text-end">Ingresos</th></tr></thead>
+    @foreach (var p in top)
+    { <tr><td>@p.Nombre</td><td>@p.Categoria</td><td class="text-end">@p.UnidadesVendidas</td><td class="text-end">@p.Ingresos.ToString("C0")</td></tr> }
+</table>
+
+@code {
+    int dias = 7;
+    List<VentaDiaria> ventas = new();
+    List<PlatoVendido> top = new();
+    decimal max => ventas.Count == 0 ? 0 : ventas.Max(v => v.TotalVentas);
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    async Task Cargar() { ventas = await CajaSvc.VentasDiariasAsync(dias); top = await CajaSvc.TopPlatosAsync(); }
+}
