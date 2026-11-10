@@ -24,6 +24,7 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<ReservaService>();
 
 var app = builder.Build();
 
