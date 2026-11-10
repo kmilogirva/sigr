@@ -23,6 +23,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<MenuService>();
+builder.Services.AddScoped<PedidoService>();
 
 var app = builder.Build();
 
