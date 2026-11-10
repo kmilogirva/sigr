@@ -1,0 +1,81 @@
+@page "/pedidos"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Mesero,Administrador")]
+@implements IDisposable
+@inject PedidoService PedidoSvc
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Pedidos</PageTitle>
+<h1>Pedidos en curso</h1>
+<p class="text-muted small">Se actualiza automáticamente cada 5 segundos.</p>
+
+@if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger">@error</div> }
+
+<div class="card mb-4"><div class="card-body">
+    <h5>Nuevo pedido</h5>
+    <div class="d-flex gap-2">
+        <select class="form-select w-auto" @bind="mesaSel">
+            <option value="0">Mesa...</option>
+            @foreach (var m in mesas.Where(m => m.Estado != "Ocupada"))
+            { <option value="@m.MesaId">Mesa @m.Numero (@m.Capacidad pers.) — @m.Estado</option> }
+        </select>
+        <button class="btn btn-primary" @onclick="Crear" disabled="@(mesaSel == 0)">Crear pedido</button>
+    </div>
+</div></div>
+
+<table class="table align-middle">
+    <thead><tr><th>#</th><th>Mesa</th><th>Mesero</th><th>Hora</th><th>Estado</th><th class="text-end">Total</th><th></th></tr></thead>
+    @foreach (var p in activos)
+    {
+        <tr>
+            <td>@p.PedidoId</td><td>@p.NumeroMesa</td><td>@p.Mesero</td><td>@p.FechaHora.ToString("HH:mm")</td>
+            <td><span class="badge @Color(p.Estado)">@p.Estado</span></td>
+            <td class="text-end">@p.Total.ToString("N0")</td>
+            <td class="text-end">
+                <a class="btn btn-outline-primary btn-sm" href="pedidos/@p.PedidoId">Abrir</a>
+                @if (p.Estado != "Entregado") { <button class="btn btn-outline-success btn-sm" @onclick="() => Avanzar(p.PedidoId)">Avanzar ▸</button> }
+            </td>
+        </tr>
+    }
+    @if (!activos.Any()) { <tr><td colspan="7" class="text-center text-muted">Sin pedidos activos.</td></tr> }
+</table>
+
+@code {
+    List<Pedido> activos = new();
+    List<Mesa> mesas = new();
+    int mesaSel;
+    string? error;
+    Timer? timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+        timer = new Timer(async _ => { await InvokeAsync(async () => { await Cargar(); StateHasChanged(); }); }, null, 5000, 5000);
+    }
+
+    async Task Cargar() { activos = await PedidoSvc.ActivosAsync(); mesas = await PedidoSvc.MesasAsync(); }
+
+    async Task Crear()
+    {
+        error = null;
+        try
+        {
+            var st = await Auth.GetAuthenticationStateAsync();
+            var meseroId = int.Parse(st.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var id = await PedidoSvc.CrearAsync(mesaSel, meseroId);
+            Nav.NavigateTo($"pedidos/{id}");
+        }
+        catch (InvalidOperationException ex) { error = ex.Message; await Cargar(); }
+    }
+
+    async Task Avanzar(int id) { await PedidoSvc.AvanzarAsync(id); await Cargar(); }
+
+    static string Color(string e) => e switch
+    {
+        "Pendiente" => "bg-secondary", "EnPreparacion" => "bg-warning text-dark",
+        "Listo" => "bg-info text-dark", "Entregado" => "bg-success", _ => "bg-light text-dark"
+    };
+
+    public void Dispose() => timer?.Dispose();
+}

@@ -12,6 +12,9 @@
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink>
         </div>
         <div class="nav-item px-3"><NavLink class="nav-link" href="menu">Menú</NavLink></div>
+        <AuthorizeView Roles="Mesero,Administrador">
+            <div class="nav-item px-3"><NavLink class="nav-link" href="pedidos">Pedidos</NavLink></div>
+        </AuthorizeView>
         <AuthorizeView Roles="Administrador">
             <div class="nav-item px-3"><NavLink class="nav-link" href="admin/menu">Administrar menú</NavLink></div>
         </AuthorizeView>

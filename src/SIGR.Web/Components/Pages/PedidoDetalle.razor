@@ -1,0 +1,84 @@
+@page "/pedidos/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Mesero,Administrador")]
+@inject PedidoService Pedidos
+@inject MenuService MenuSvc
+
+<PageTitle>Pedido #@Id</PageTitle>
+@if (pedido is null) { <p>Pedido no encontrado.</p> }
+else
+{
+    <h1>Pedido #@pedido.PedidoId — Mesa @pedido.NumeroMesa</h1>
+    <p>Estado: <strong>@pedido.Estado</strong> · Mesero: @pedido.Mesero · @pedido.FechaHora.ToString("g")</p>
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger">@error</div> }
+
+    @if (pedido.Estado is "Pendiente" or "EnPreparacion")
+    {
+        <div class="card mb-3"><div class="card-body"><div class="row g-2">
+            <div class="col-md-5"><select class="form-select" @bind="platoSel">
+                <option value="0">Plato...</option>
+                @foreach (var g in platos.GroupBy(p => p.Categoria))
+                {
+                    <optgroup label="@g.Key">
+                    @foreach (var p in g) { <option value="@p.PlatoId">@p.Nombre — @p.Precio.ToString("N0")</option> }
+                    </optgroup>
+                }
+            </select></div>
+            <div class="col-md-2"><input type="number" min="1" class="form-control" @bind="cantidad" /></div>
+            <div class="col-md-3"><input class="form-control" placeholder="Nota (opcional)" @bind="nota" /></div>
+            <div class="col-md-2"><button class="btn btn-primary w-100" @onclick="Agregar" disabled="@(platoSel == 0)">Agregar</button></div>
+        </div></div></div>
+    }
+
+    <table class="table">
+        <thead><tr><th>Plato</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">Subtotal</th><th>Nota</th><th></th></tr></thead>
+        @foreach (var d in detalle)
+        {
+            <tr><td>@d.Plato</td><td class="text-end">@d.Cantidad</td><td class="text-end">@d.PrecioUnitario.ToString("N0")</td>
+                <td class="text-end">@d.Subtotal.ToString("N0")</td><td>@d.Nota</td>
+                <td>@if (pedido.Estado is "Pendiente" or "EnPreparacion") { <button class="btn btn-outline-danger btn-sm" @onclick="() => Quitar(d.DetalleId)">Quitar</button> }</td></tr>
+        }
+        <tfoot><tr><th colspan="3" class="text-end">Total</th><th class="text-end">@pedido.Total.ToString("C0")</th><th colspan="2"></th></tr></tfoot>
+    </table>
+
+    @if (pedido.Estado is not ("Pagado" or "Cancelado"))
+    {
+        <div class="d-flex gap-2">
+            @if (pedido.Estado != "Entregado") { <button class="btn btn-success" @onclick="Avanzar">Avanzar estado ▸</button> }
+            else
+            {
+                <button class="btn btn-success" @onclick='() => Pagar("Efectivo")'>Cobrar efectivo</button>
+                <button class="btn btn-success" @onclick='() => Pagar("Tarjeta")'>Cobrar tarjeta</button>
+                <button class="btn btn-success" @onclick='() => Pagar("Transferencia")'>Cobrar transferencia</button>
+            }
+            <button class="btn btn-outline-danger ms-auto" @onclick="Cancelar">Cancelar pedido</button>
+        </div>
+    }
+    <p class="mt-3"><a href="pedidos">← Volver a pedidos</a></p>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    Pedido? pedido;
+    List<DetallePedido> detalle = new();
+    List<Plato> platos = new();
+    int platoSel, cantidad = 1;
+    string? nota, error;
+
+    protected override async Task OnInitializedAsync() { platos = await MenuSvc.PlatosAsync(soloDisponibles: true); await Cargar(); }
+
+    async Task Cargar() { pedido = await Pedidos.ObtenerAsync(Id); detalle = await Pedidos.DetalleAsync(Id); }
+
+    async Task Ejecutar(Func<Task> accion)
+    {
+        error = null;
+        try { await accion(); } catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { error = ex.Message; }
+        await Cargar();
+    }
+
+    Task Agregar() => Ejecutar(async () => { await Pedidos.AgregarItemAsync(Id, platoSel, cantidad, string.IsNullOrWhiteSpace(nota) ? null : nota); platoSel = 0; cantidad = 1; nota = null; });
+    Task Quitar(int detalleId) => Ejecutar(() => Pedidos.QuitarItemAsync(Id, detalleId));
+    Task Avanzar() => Ejecutar(() => Pedidos.AvanzarAsync(Id));
+    Task Pagar(string metodo) => Ejecutar(() => Pedidos.PagarAsync(Id, metodo));
+    Task Cancelar() => Ejecutar(() => Pedidos.CancelarAsync(Id));
+}
