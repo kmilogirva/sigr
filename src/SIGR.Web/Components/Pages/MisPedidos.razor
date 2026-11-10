@@ -1,0 +1,118 @@
+@page "/mis-pedidos"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Cliente")]
+@implements IDisposable
+@inject PedidoService PedidoSvc
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Mis pedidos</PageTitle>
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h1 class="h2 fw-bold mb-0">Mis pedidos</h1>
+        <p class="text-muted small mb-0">Se actualiza automáticamente cada 5 segundos.</p>
+    </div>
+    <a href="menu" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo pedido</a>
+</div>
+
+@if (Nuevo == "1") { <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>¡Pedido enviado a cocina! Aquí puedes seguir su estado.</div> }
+@if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger">@error</div> }
+
+@if (pedidos is null) { <p>Cargando...</p> }
+else if (pedidos.Count == 0)
+{
+    <div class="text-center text-muted py-5"><i class="bi bi-receipt fs-1 d-block mb-2"></i>Aún no has hecho pedidos.</div>
+}
+else
+{
+    @foreach (var p in pedidos)
+    {
+        var paso = Array.IndexOf(PedidoService.FlujoEstados, p.Estado);
+        <div class="card border-0 shadow-sm mb-3" style="border-radius:1rem">
+            <div class="card-body">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <div>
+                        <h2 class="h5 fw-bold mb-0">Pedido #@p.PedidoId · Mesa @p.NumeroMesa</h2>
+                        <span class="text-muted small">@p.FechaHora.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge @Color(p.Estado)">@p.Estado</span>
+                        <div class="fw-bold fs-5">@p.Total.ToString("C0")</div>
+                    </div>
+                </div>
+
+                @if (paso >= 0)
+                {
+                    <div class="d-flex gap-1 my-3">
+                        @for (var i = 0; i < PedidoService.FlujoEstados.Length; i++)
+                        {
+                            <div class="flex-fill text-center small">
+                                <div class="progress" style="height:6px"><div class="progress-bar @(i <= paso ? "bg-success" : "bg-light")" style="width:100%"></div></div>
+                                <span class="@(i <= paso ? "fw-semibold" : "text-muted")">@PedidoService.FlujoEstados[i]</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (detalles.TryGetValue(p.PedidoId, out var det))
+                {
+                    <ul class="list-unstyled mb-2 small">
+                        @foreach (var d in det)
+                        {
+                            <li>@d.Cantidad × @d.Plato <span class="text-muted">— @d.Subtotal.ToString("C0")</span>@if (!string.IsNullOrEmpty(d.Nota)) { <em class="text-muted"> (@d.Nota)</em> }</li>
+                        }
+                    </ul>
+                }
+
+                @if (p.Estado == "Pendiente")
+                {
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => Cancelar(p.PedidoId)"><i class="bi bi-x-circle me-1"></i>Cancelar pedido</button>
+                }
+                else if (p.Estado == "Entregado")
+                {
+                    <p class="small text-muted mb-0"><i class="bi bi-cash-coin me-1"></i>Solicita la cuenta a tu mesero para pagar.</p>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery] public string? Nuevo { get; set; }
+
+    List<Pedido>? pedidos;
+    readonly Dictionary<int, List<DetallePedido>> detalles = new();
+    int usuarioId;
+    string? error;
+    Timer? timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        usuarioId = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        await Cargar();
+        timer = new Timer(_ => InvokeAsync(async () => { await Cargar(); StateHasChanged(); }), null, 5000, 5000);
+    }
+
+    async Task Cargar()
+    {
+        pedidos = await PedidoSvc.DeClienteAsync(usuarioId);
+        foreach (var p in pedidos.Take(10)) detalles[p.PedidoId] = await PedidoSvc.DetalleAsync(p.PedidoId);
+    }
+
+    async Task Cancelar(int id)
+    {
+        error = null;
+        try { await PedidoSvc.CancelarDeClienteAsync(id, usuarioId); }
+        catch (InvalidOperationException ex) { error = ex.Message; }
+        await Cargar();
+    }
+
+    static string Color(string e) => e switch
+    {
+        "Pendiente" => "bg-secondary", "EnPreparacion" => "bg-warning text-dark",
+        "Listo" => "bg-info text-dark", "Entregado" => "bg-success",
+        "Pagado" => "bg-primary", _ => "bg-dark"
+    };
+
+    public void Dispose() => timer?.Dispose();
+}

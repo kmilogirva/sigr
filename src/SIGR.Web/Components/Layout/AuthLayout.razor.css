@@ -1,0 +1,72 @@
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+}
+
+.auth-side {
+    flex: 1;
+    align-items: center;
+    padding: 4rem;
+    color: #fff;
+    background:
+        linear-gradient(160deg, rgba(5, 20, 60, .9), rgba(58, 6, 71, .85)),
+        url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1400&q=70') center/cover,
+        linear-gradient(135deg, #052767, #3a0647);
+}
+
+.auth-brand {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+}
+
+.auth-brand i, .auth-logo i { color: #ffc107; }
+
+.auth-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: #f6f4fa;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 1.25rem;
+    padding: 2.25rem;
+    box-shadow: 0 10px 30px rgba(58, 6, 71, .12);
+}
+
+.auth-logo {
+    display: block;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #3a0647;
+    text-decoration: none;
+    margin-bottom: 1rem;
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }

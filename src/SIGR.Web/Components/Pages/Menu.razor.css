@@ -1,0 +1,25 @@
+.plato-card {
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+}
+
+.plato-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, .12) !important;
+}
+
+.plato-thumb {
+    height: 90px;
+    display: grid;
+    place-items: center;
+    font-size: 2.4rem;
+    color: rgba(255, 255, 255, .9);
+    background: linear-gradient(135deg, #052767, #6f2dbd);
+}
+
+.carrito {
+    position: sticky;
+    top: 4.5rem;
+    border-radius: 1rem;
+}

@@ -1,7 +1,123 @@
 ﻿@page "/"
-<PageTitle>SIGR</PageTitle>
-<h1>Sistema Integral de Gestión de Restaurante</h1>
-<AuthorizeView>
-    <Authorized><p class="lead">Bienvenido, <strong>@context.User.Identity?.Name</strong> (@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value).</p></Authorized>
-    <NotAuthorized><p class="lead">Gestiona menú, pedidos, reservas y caja. <a href="login">Inicia sesión</a> para continuar.</p></NotAuthorized>
-</AuthorizeView>
+<PageTitle>SIGR · Inicio</PageTitle>
+
+<section class="hero rounded-4 overflow-hidden mb-5">
+    <div class="hero-overlay">
+        <span class="badge rounded-pill hero-badge mb-3"><i class="bi bi-stars me-1"></i>Sabor que se reserva</span>
+        <h1 class="display-5 fw-bold mb-3">Sistema Integral de Gestión de Restaurante</h1>
+        <AuthorizeView>
+            <Authorized>
+                <p class="lead mb-4">Bienvenido, <strong>@context.User.Identity?.Name</strong>
+                    <span class="badge bg-light text-dark ms-1">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span></p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-warning btn-lg px-4" href="menu"><i class="bi bi-bag-plus me-2"></i>Hacer pedido</a>
+                    <a class="btn btn-outline-light btn-lg px-4" href="reservas"><i class="bi bi-calendar-check me-2"></i>Reservar mesa</a>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <p class="lead mb-4">Gestiona menú, pedidos, reservas y caja en un solo lugar.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-warning btn-lg px-4" href="login"><i class="bi bi-box-arrow-in-right me-2"></i>Inicia sesión</a>
+                    <a class="btn btn-outline-light btn-lg px-4" href="registro"><i class="bi bi-person-plus me-2"></i>Crear cuenta</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</section>
+
+<section class="row g-3 mb-5 text-center">
+    @foreach (var s in Stats)
+    {
+        <div class="col-6 col-lg-3">
+            <div class="stat-card p-3 h-100">
+                <i class="bi @s.Icon fs-2 stat-icon"></i>
+                <div class="fs-3 fw-bold">@s.Valor</div>
+                <div class="text-muted small">@s.Etiqueta</div>
+            </div>
+        </div>
+    }
+</section>
+
+<section class="mb-5">
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div>
+            <h2 class="h3 fw-bold mb-0">Platos destacados</h2>
+            <p class="text-muted mb-0">Los favoritos de nuestros clientes</p>
+        </div>
+        <a href="menu" class="btn btn-outline-primary btn-sm">Ver todo el menú <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-4">
+        @foreach (var p in Platos)
+        {
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card dish-card h-100 border-0 shadow-sm">
+                    <div class="dish-img" style="background-image:url('@p.Imagen')">
+                        <span class="badge dish-tag">@p.Etiqueta</span>
+                    </div>
+                    <div class="card-body">
+                        <h3 class="h6 fw-bold mb-1">@p.Nombre</h3>
+                        <p class="text-muted small mb-2">@p.Descripcion</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-success">@p.Precio.ToString("C0")</span>
+                            <span class="text-warning small"><i class="bi bi-star-fill"></i> @p.Rating</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<section class="row g-4 mb-5">
+    @foreach (var f in Funciones)
+    {
+        <div class="col-12 col-md-4">
+            <div class="feature-card p-4 h-100">
+                <div class="feature-icon mb-3"><i class="bi @f.Icon"></i></div>
+                <h3 class="h5 fw-bold">@f.Titulo</h3>
+                <p class="text-muted mb-0">@f.Texto</p>
+            </div>
+        </div>
+    }
+</section>
+
+<section class="cta rounded-4 p-4 p-md-5 mb-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1">¿Listo para tu próxima mesa?</h2>
+        <p class="mb-0 opacity-75"><i class="bi bi-clock me-1"></i>Abierto todos los días de 11:00 a 23:00 · <i class="bi bi-geo-alt ms-2 me-1"></i>Calle 10 #20-30</p>
+    </div>
+    <a class="btn btn-light btn-lg px-4" href="reservas"><i class="bi bi-calendar-plus me-2"></i>Reservar ahora</a>
+</section>
+
+@code {
+    record Stat(string Icon, string Valor, string Etiqueta);
+    record Plato(string Nombre, string Descripcion, decimal Precio, string Rating, string Etiqueta, string Imagen);
+    record Funcion(string Icon, string Titulo, string Texto);
+
+    static readonly Stat[] Stats =
+    {
+        new("bi-people", "1.200+", "Clientes felices"),
+        new("bi-egg-fried", "45", "Platos en carta"),
+        new("bi-calendar-check", "320", "Reservas al mes"),
+        new("bi-star-fill", "4.8", "Calificación media")
+    };
+
+    static readonly Plato[] Platos =
+    {
+        new("Bandeja paisa", "Frijoles, arroz, chicharrón, huevo y arepa.", 32000, "4.9", "Típico",
+            "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=70"),
+        new("Hamburguesa de la casa", "Carne angus, queso cheddar y papas rústicas.", 28000, "4.7", "Popular",
+            "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=70"),
+        new("Pasta alfredo", "Fettuccine en crema con pollo y parmesano.", 26000, "4.6", "Chef",
+            "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&q=70"),
+        new("Tarta de chocolate", "Postre tibio con helado de vainilla.", 14000, "4.8", "Postre",
+            "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&q=70")
+    };
+
+    static readonly Funcion[] Funciones =
+    {
+        new("bi-journal-richtext", "Menú siempre al día", "Consulta platos, precios y disponibilidad en tiempo real."),
+        new("bi-calendar2-heart", "Reservas fáciles", "Elige fecha, hora y número de personas en segundos."),
+        new("bi-receipt-cutoff", "Pedidos y caja", "Seguimiento del pedido hasta el cobro, sin papeles.")
+    };
+}

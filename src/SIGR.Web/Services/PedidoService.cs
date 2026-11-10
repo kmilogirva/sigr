@@ -63,6 +63,64 @@ public class PedidoService(DbConnectionFactory db)
         return id;
     }
 
+    public record ItemCarrito(int PlatoId, int Cantidad, string? Nota);
+
+    /// <summary>
+    /// Pedido autogestionado por el cliente: crea el pedido en una mesa libre y agrega todos los ítems
+    /// en una sola transacción. El cliente queda como responsable (MeseroId) del pedido.
+    /// </summary>
+    public async Task<int> CrearPedidoClienteAsync(int clienteId, int mesaId, IReadOnlyCollection<ItemCarrito> items)
+    {
+        if (items.Count == 0) throw new ArgumentException("Agrega al menos un plato al pedido.");
+        if (items.Any(i => i.Cantidad <= 0)) throw new ArgumentException("Las cantidades deben ser mayores a cero.");
+        using var cn = db.Create();
+        await cn.OpenAsync();
+        using var tx = cn.BeginTransaction();
+        var estadoMesa = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Mesas WHERE MesaId=@mesaId", new { mesaId }, tx);
+        if (estadoMesa != "Libre") throw new InvalidOperationException("La mesa seleccionada ya no está libre. Elige otra.");
+        var abierto = await cn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.Pedidos WHERE MesaId=@mesaId AND Estado NOT IN ('Pagado','Cancelado')", new { mesaId }, tx);
+        if (abierto > 0) throw new InvalidOperationException("La mesa ya tiene un pedido abierto.");
+        var id = await cn.ExecuteScalarAsync<int>(
+            "INSERT dbo.Pedidos (MesaId, MeseroId) OUTPUT INSERTED.PedidoId VALUES (@mesaId,@clienteId)", new { mesaId, clienteId }, tx);
+        foreach (var it in items)
+        {
+            var precio = await cn.ExecuteScalarAsync<decimal?>(
+                "SELECT Precio FROM dbo.Platos WHERE PlatoId=@PlatoId AND Disponible=1", new { it.PlatoId }, tx)
+                ?? throw new InvalidOperationException("Uno de los platos ya no está disponible.");
+            await cn.ExecuteAsync(
+                "INSERT dbo.DetallePedido (PedidoId,PlatoId,Cantidad,PrecioUnitario,Nota) VALUES (@id,@PlatoId,@Cantidad,@precio,@Nota)",
+                new { id, it.PlatoId, it.Cantidad, precio, it.Nota }, tx);
+        }
+        await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @id", new { id }, tx);
+        await cn.ExecuteAsync("UPDATE dbo.Mesas SET Estado='Ocupada' WHERE MesaId=@mesaId", new { mesaId }, tx);
+        tx.Commit();
+        return id;
+    }
+
+    /// <summary>Pedidos hechos por un cliente, el más reciente primero.</summary>
+    public async Task<List<Pedido>> DeClienteAsync(int clienteId)
+    {
+        using var cn = db.Create();
+        return (await cn.QueryAsync<Pedido>(SelectPedido + " WHERE p.MeseroId=@clienteId ORDER BY p.FechaHora DESC", new { clienteId })).ToList();
+    }
+
+    /// <summary>El cliente solo puede cancelar su propio pedido mientras siga Pendiente.</summary>
+    public async Task CancelarDeClienteAsync(int pedidoId, int clienteId)
+    {
+        var p = await ObtenerAsync(pedidoId);
+        if (p is null || !await EsDeClienteAsync(pedidoId, clienteId)) throw new InvalidOperationException("Pedido no encontrado.");
+        if (p.Estado != "Pendiente") throw new InvalidOperationException("Solo puedes cancelar pedidos que aún no están en preparación.");
+        await CancelarAsync(pedidoId);
+    }
+
+    public async Task<bool> EsDeClienteAsync(int pedidoId, int clienteId)
+    {
+        using var cn = db.Create();
+        return await cn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.Pedidos WHERE PedidoId=@pedidoId AND MeseroId=@clienteId", new { pedidoId, clienteId }) > 0;
+    }
+
     public async Task AgregarItemAsync(int pedidoId, int platoId, int cantidad, string? nota)
     {
         if (cantidad <= 0) throw new ArgumentException("La cantidad debe ser mayor a cero.");

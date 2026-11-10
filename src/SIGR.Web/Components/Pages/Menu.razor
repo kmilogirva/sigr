@@ -1,30 +1,193 @@
 @page "/menu"
 @rendermode InteractiveServer
 @inject MenuService MenuSvc
+@inject PedidoService PedidoSvc
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
 
 <PageTitle>Menú</PageTitle>
-<h1>Menú digital</h1>
+
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+    <div>
+        <h1 class="h2 fw-bold mb-0">Menú digital</h1>
+        <p class="text-muted mb-0">@(esCliente ? "Elige tus platos, selecciona una mesa y confirma tu pedido." : "Nuestra carta completa.")</p>
+    </div>
+    @if (esCliente)
+    {
+        <a href="mis-pedidos" class="btn btn-outline-primary"><i class="bi bi-receipt me-1"></i>Mis pedidos</a>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
 
 @if (platos is null) { <p>Cargando...</p> }
 else
 {
-    foreach (var g in platos.GroupBy(p => p.Categoria))
-    {
-        <h3 class="mt-4">@g.Key</h3>
-        <div class="row">
-        @foreach (var p in g)
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-sm rounded-pill @(filtro is null ? "btn-primary" : "btn-outline-primary")" @onclick="() => filtro = null">Todo</button>
+        @foreach (var c in platos.Select(p => p.Categoria).Distinct())
         {
-            <div class="col-md-4 mb-3"><div class="card h-100"><div class="card-body">
-                <h5 class="card-title">@p.Nombre</h5>
-                <p class="card-text text-muted">@p.Descripcion</p>
-                <strong>@p.Precio.ToString("C0")</strong>
-            </div></div></div>
+            var cat = c;
+            <button class="btn btn-sm rounded-pill @(filtro == cat ? "btn-primary" : "btn-outline-primary")" @onclick="() => filtro = cat">
+                <i class="bi @Icono(cat) me-1"></i>@cat</button>
         }
+    </div>
+
+    <div class="row g-4">
+        <div class="@(esCliente ? "col-lg-8" : "col-12")">
+            @foreach (var g in platos.Where(p => filtro is null || p.Categoria == filtro).GroupBy(p => p.Categoria))
+            {
+                <h2 class="h4 fw-bold mt-2 mb-3"><i class="bi @Icono(g.Key) me-2 text-primary"></i>@g.Key</h2>
+                <div class="row g-3 mb-4">
+                @foreach (var p in g)
+                {
+                    var enCarrito = carrito.TryGetValue(p.PlatoId, out var it) ? it.Cantidad : 0;
+                    <div class="@(esCliente ? "col-md-6" : "col-md-4")">
+                        <div class="card plato-card h-100 border-0 shadow-sm">
+                            <div class="plato-thumb"><i class="bi @Icono(p.Categoria)"></i></div>
+                            <div class="card-body d-flex flex-column">
+                                <h3 class="h6 fw-bold mb-1">@p.Nombre</h3>
+                                <p class="text-muted small flex-grow-1">@p.Descripcion</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong class="text-success">@p.Precio.ToString("C0")</strong>
+                                    @if (esCliente)
+                                    {
+                                        @if (enCarrito == 0)
+                                        {
+                                            <button class="btn btn-primary btn-sm" @onclick="() => Agregar(p)"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+                                        }
+                                        else
+                                        {
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" @onclick="() => Cambiar(p.PlatoId, -1)"><i class="bi bi-dash"></i></button>
+                                                <span class="btn btn-primary disabled">@enCarrito</span>
+                                                <button class="btn btn-outline-primary" @onclick="() => Cambiar(p.PlatoId, 1)"><i class="bi bi-plus"></i></button>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                </div>
+            }
         </div>
+
+        @if (esCliente)
+        {
+            <aside class="col-lg-4">
+                <div class="card border-0 shadow carrito">
+                    <div class="card-header bg-transparent fw-bold"><i class="bi bi-cart3 me-2"></i>Tu pedido
+                        <span class="badge bg-primary ms-1">@carrito.Values.Sum(i => i.Cantidad)</span></div>
+                    <div class="card-body">
+                        @if (carrito.Count == 0)
+                        {
+                            <p class="text-muted text-center my-4"><i class="bi bi-basket fs-2 d-block mb-2"></i>Aún no has agregado platos.</p>
+                        }
+                        else
+                        {
+                            @foreach (var it in carrito.Values)
+                            {
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-semibold">@it.Plato.Nombre</span>
+                                        <span>@((it.Plato.Precio * it.Cantidad).ToString("C0"))</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 mt-1">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary" @onclick="() => Cambiar(it.Plato.PlatoId, -1)"><i class="bi bi-dash"></i></button>
+                                            <span class="btn btn-light disabled">@it.Cantidad</span>
+                                            <button class="btn btn-outline-secondary" @onclick="() => Cambiar(it.Plato.PlatoId, 1)"><i class="bi bi-plus"></i></button>
+                                        </div>
+                                        <input class="form-control form-control-sm" placeholder="Nota (sin cebolla...)" maxlength="150" @bind="it.Nota" />
+                                    </div>
+                                </div>
+                            }
+                            <hr />
+                            <div class="d-flex justify-content-between fs-5 fw-bold mb-3"><span>Total</span><span>@Total.ToString("C0")</span></div>
+                            <label class="form-label small fw-semibold">Mesa</label>
+                            <select class="form-select mb-3" @bind="mesaSel">
+                                <option value="0">Selecciona una mesa libre...</option>
+                                @foreach (var m in mesas) { <option value="@m.MesaId">Mesa @m.Numero (@m.Capacidad pers.)</option> }
+                            </select>
+                            @if (!mesas.Any()) { <div class="alert alert-warning py-2 small">No hay mesas libres ahora. <a href="reservas">Reserva una</a>.</div> }
+                            <button class="btn btn-success w-100" @onclick="Confirmar" disabled="@(mesaSel == 0 || enviando)">
+                                <i class="bi bi-check2-circle me-1"></i>Confirmar pedido</button>
+                            <button class="btn btn-link btn-sm w-100 text-danger mt-1" @onclick="Vaciar">Vaciar carrito</button>
+                        }
+                    </div>
+                </div>
+            </aside>
+        }
+    </div>
+
+    @if (!esCliente && !autenticado)
+    {
+        <div class="alert alert-info mt-3"><i class="bi bi-info-circle me-1"></i><a href="login">Inicia sesión</a> como cliente para hacer tu pedido.</div>
     }
 }
 
 @code {
+    class Linea { public Plato Plato { get; set; } = default!; public int Cantidad { get; set; } public string? Nota { get; set; } }
+
     List<Plato>? platos;
-    protected override async Task OnInitializedAsync() => platos = await MenuSvc.PlatosAsync(soloDisponibles: true);
+    List<Mesa> mesas = new();
+    readonly Dictionary<int, Linea> carrito = new();
+    string? filtro, mensaje;
+    bool esCliente, autenticado, esError, enviando;
+    int usuarioId, mesaSel;
+
+    decimal Total => carrito.Values.Sum(i => i.Plato.Precio * i.Cantidad);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        autenticado = u.Identity?.IsAuthenticated == true;
+        esCliente = u.IsInRole("Cliente");
+        if (esCliente) usuarioId = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        platos = await MenuSvc.PlatosAsync(soloDisponibles: true);
+        if (esCliente) await CargarMesas();
+    }
+
+    async Task CargarMesas() => mesas = (await PedidoSvc.MesasAsync()).Where(m => m.Estado == "Libre").ToList();
+
+    void Agregar(Plato p) { carrito[p.PlatoId] = new Linea { Plato = p, Cantidad = 1 }; mensaje = null; }
+
+    void Cambiar(int platoId, int delta)
+    {
+        if (!carrito.TryGetValue(platoId, out var l)) return;
+        l.Cantidad += delta;
+        if (l.Cantidad <= 0) carrito.Remove(platoId);
+        else if (l.Cantidad > 20) l.Cantidad = 20;
+    }
+
+    void Vaciar() { carrito.Clear(); mesaSel = 0; }
+
+    async Task Confirmar()
+    {
+        enviando = true; mensaje = null;
+        try
+        {
+            var items = carrito.Values.Select(l => new PedidoService.ItemCarrito(
+                l.Plato.PlatoId, l.Cantidad, string.IsNullOrWhiteSpace(l.Nota) ? null : l.Nota.Trim())).ToList();
+            await PedidoSvc.CrearPedidoClienteAsync(usuarioId, mesaSel, items);
+            Nav.NavigateTo("mis-pedidos?nuevo=1");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            mensaje = ex.Message; esError = true; mesaSel = 0; await CargarMesas();
+        }
+        finally { enviando = false; }
+    }
+
+    static string Icono(string categoria)
+    {
+        var c = categoria.ToLowerInvariant();
+        if (c.Contains("beb") || c.Contains("jug")) return "bi-cup-straw";
+        if (c.Contains("post")) return "bi-cake2";
+        if (c.Contains("entr")) return "bi-egg-fried";
+        if (c.Contains("sopa")) return "bi-cup-hot";
+        return "bi-fork-knife";
+    }
 }

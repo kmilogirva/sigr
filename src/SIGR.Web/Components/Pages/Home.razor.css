@@ -1,0 +1,85 @@
+.hero {
+    background:
+        linear-gradient(110deg, rgba(5, 20, 60, .92) 0%, rgba(58, 6, 71, .75) 55%, rgba(0, 0, 0, .25) 100%),
+        url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&q=70') center/cover,
+        linear-gradient(135deg, #052767, #3a0647);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(58, 6, 71, .25);
+}
+
+.hero-overlay {
+    padding: 4rem 2.5rem;
+    max-width: 780px;
+}
+
+.hero-badge {
+    background: rgba(255, 193, 7, .2);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, .5);
+    padding: .5rem .9rem;
+    font-weight: 500;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .06);
+    transition: transform .2s;
+}
+
+.stat-card:hover { transform: translateY(-4px); }
+
+.stat-icon { color: #6f2dbd; }
+
+.dish-card {
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: transform .25s, box-shadow .25s;
+}
+
+.dish-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, .15) !important;
+}
+
+.dish-img {
+    height: 180px;
+    background-color: #e9e3f1;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.dish-tag {
+    position: absolute;
+    top: .75rem;
+    left: .75rem;
+    background: #ffc107;
+    color: #222;
+}
+
+.feature-card {
+    background: linear-gradient(180deg, #faf7ff, #fff);
+    border: 1px solid #ece4f7;
+    border-radius: 1rem;
+}
+
+.feature-icon {
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: .9rem;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    color: #fff;
+    background: linear-gradient(135deg, #052767, #6f2dbd);
+}
+
+.cta {
+    background: linear-gradient(120deg, #052767, #3a0647);
+    color: #fff;
+}
+
+@media (max-width: 640px) {
+    .hero-overlay { padding: 2.5rem 1.25rem; }
+}
