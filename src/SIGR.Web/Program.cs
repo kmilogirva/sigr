@@ -1,10 +1,13 @@
 using SIGR.Web.Components;
+using SIGR.Web.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<DbConnectionFactory>();
 
 var app = builder.Build();
 
