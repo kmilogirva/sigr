@@ -1,0 +1,217 @@
+@page "/admin/inventario"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Administrador")]
+@inject InventarioService Inv
+@inject MenuService Menu
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Inventario</PageTitle>
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+    <div>
+        <h1 class="h2 fw-bold mb-0">Inventario</h1>
+        <p class="text-muted mb-0">Insumos, recetas y movimientos. Cada plato pedido descuenta sus insumos automáticamente.</p>
+    </div>
+    @if (bajos > 0)
+    {
+        <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-triangle me-1"></i>@bajos insumo(s) con stock bajo</span>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
+
+<ul class="nav nav-pills mb-3">
+    @foreach (var (clave, titulo, icono) in new[] { ("insumos", "Insumos", "bi-boxes"), ("recetas", "Recetas", "bi-journal-text"), ("kardex", "Movimientos", "bi-arrow-left-right") })
+    {
+        var c = clave;
+        <li class="nav-item"><button class="nav-link @(tab == c ? "active" : "")" @onclick="() => tab = c"><i class="bi @icono me-1"></i>@titulo</button></li>
+    }
+</ul>
+
+@if (tab == "insumos")
+{
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="soloBajo" @bind="soloBajo" />
+                <label class="form-check-label" for="soloBajo">Mostrar solo stock bajo</label></div>
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Insumo</th><th class="text-end">Stock</th><th class="text-end">Mínimo</th><th class="text-end">Costo</th><th></th></tr></thead>
+                @foreach (var i in insumos.Where(x => !soloBajo || x.StockBajo))
+                {
+                    <tr class="@(i.Activo ? "" : "text-muted")">
+                        <td>@i.Nombre @if (!i.Activo) { <span class="badge bg-secondary">inactivo</span> }</td>
+                        <td class="text-end"><span class="badge @(i.StockBajo ? "bg-danger" : "bg-success")">@i.StockActual.ToString("0.###") @i.Unidad</span></td>
+                        <td class="text-end">@i.StockMinimo.ToString("0.###")</td>
+                        <td class="text-end">@i.CostoUnitario.ToString("N0")</td>
+                        <td class="text-end text-nowrap">
+                            <button class="btn btn-outline-primary btn-sm" @onclick="() => SeleccionarMov(i)">Movimiento</button>
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => nuevo = Clonar(i)">Editar</button>
+                        </td>
+                    </tr>
+                }
+            </table>
+        </div>
+        <div class="col-lg-4">
+            @if (movInsumo is not null)
+            {
+                <div class="card mb-3 border-0 shadow-sm"><div class="card-body">
+                    <h2 class="h6 fw-bold">Movimiento: @movInsumo.Nombre <small class="text-muted">(@movInsumo.Unidad)</small></h2>
+                    <select class="form-select form-select-sm mb-2" @bind="movTipo">
+                        @foreach (var t in InventarioService.TiposManuales) { <option>@t</option> }
+                    </select>
+                    <input type="number" step="0.001" class="form-control form-control-sm mb-2" placeholder="@(movTipo == "Ajuste" ? "Cantidad (+ o -)" : "Cantidad")" @bind="movCantidad" />
+                    <input class="form-control form-control-sm mb-2" maxlength="150" placeholder="Nota (opcional)" @bind="movNota" />
+                    <button class="btn btn-primary btn-sm" @onclick="RegistrarMov">Registrar</button>
+                    <button class="btn btn-link btn-sm" @onclick="() => movInsumo = null">Cerrar</button>
+                </div></div>
+            }
+            <div class="card border-0 shadow-sm"><div class="card-body">
+                <h2 class="h6 fw-bold">@(nuevo.InsumoId == 0 ? "Nuevo insumo" : "Editar insumo")</h2>
+                <input class="form-control form-control-sm mb-2" maxlength="60" placeholder="Nombre" @bind="nuevo.Nombre" />
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><select class="form-select form-select-sm" @bind="nuevo.Unidad">
+                        @foreach (var u in InventarioService.Unidades) { <option>@u</option> }</select></div>
+                    <div class="col-6"><input type="number" step="0.01" class="form-control form-control-sm" placeholder="Costo unitario" @bind="nuevo.CostoUnitario" /></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    @if (nuevo.InsumoId == 0)
+                    {
+                        <div class="col-6"><input type="number" step="0.001" class="form-control form-control-sm" placeholder="Stock inicial" @bind="nuevo.StockActual" /></div>
+                    }
+                    <div class="@(nuevo.InsumoId == 0 ? "col-6" : "col-12")"><input type="number" step="0.001" class="form-control form-control-sm" placeholder="Stock mínimo" @bind="nuevo.StockMinimo" /></div>
+                </div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="activo" @bind="nuevo.Activo" /><label class="form-check-label" for="activo">Activo</label></div>
+                <button class="btn btn-primary btn-sm" @onclick="GuardarInsumo">@(nuevo.InsumoId == 0 ? "Crear" : "Actualizar")</button>
+                @if (nuevo.InsumoId != 0) { <button class="btn btn-link btn-sm" @onclick="() => nuevo = new()">Cancelar</button> }
+            </div></div>
+        </div>
+    </div>
+}
+else if (tab == "recetas")
+{
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <label class="form-label fw-semibold">Plato</label>
+            <select class="form-select mb-3" @bind="platoSel" @bind:after="CargarReceta">
+                <option value="0">Selecciona...</option>
+                @foreach (var p in platos) { <option value="@p.PlatoId">@p.Nombre</option> }
+            </select>
+            @if (platoSel != 0)
+            {
+                var plato = platos.First(p => p.PlatoId == platoSel);
+                var costo = receta.Sum(r => r.Costo);
+                <div class="card border-0 shadow-sm"><div class="card-body">
+                    <div class="d-flex justify-content-between"><span>Precio de venta</span><strong>@plato.Precio.ToString("C0")</strong></div>
+                    <div class="d-flex justify-content-between"><span>Costo estimado</span><strong>@costo.ToString("C0")</strong></div>
+                    <hr class="my-2" />
+                    <div class="d-flex justify-content-between"><span>Margen</span>
+                        <strong class="@(costo > plato.Precio ? "text-danger" : "text-success")">@((plato.Precio - costo).ToString("C0")) (@(plato.Precio > 0 ? ((plato.Precio - costo) / plato.Precio * 100).ToString("0") : "0")%)</strong></div>
+                </div></div>
+            }
+        </div>
+        <div class="col-lg-8">
+            @if (platoSel == 0) { <p class="text-muted">Elige un plato para ver y editar su receta.</p> }
+            else
+            {
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Insumo</th><th class="text-end">Cantidad por plato</th><th class="text-end">Costo</th><th></th></tr></thead>
+                    @foreach (var r in receta)
+                    {
+                        <tr><td>@r.Insumo</td><td class="text-end">@r.Cantidad.ToString("0.###") @r.Unidad</td><td class="text-end">@r.Costo.ToString("N0")</td>
+                            <td class="text-end"><button class="btn btn-outline-danger btn-sm" @onclick="() => QuitarReceta(r.InsumoId)">Quitar</button></td></tr>
+                    }
+                    @if (!receta.Any()) { <tr><td colspan="4" class="text-muted text-center">Este plato no descuenta insumos.</td></tr> }
+                </table>
+                <div class="row g-2">
+                    <div class="col-md-6"><select class="form-select form-select-sm" @bind="recInsumo">
+                        <option value="0">Insumo...</option>
+                        @foreach (var i in insumos.Where(x => x.Activo)) { <option value="@i.InsumoId">@i.Nombre (@i.Unidad)</option> }</select></div>
+                    <div class="col-md-3"><input type="number" step="0.001" class="form-control form-control-sm" placeholder="Cantidad" @bind="recCantidad" /></div>
+                    <div class="col-md-3"><button class="btn btn-primary btn-sm w-100" @onclick="GuardarReceta" disabled="@(recInsumo == 0)">Agregar / actualizar</button></div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-2 mb-3">
+        <div class="col-md-4">
+            <select class="form-select" @bind="kardexInsumo" @bind:after="CargarKardex">
+                <option value="0">Todos los insumos</option>
+                @foreach (var i in insumos) { <option value="@i.InsumoId">@i.Nombre</option> }
+            </select>
+        </div>
+    </div>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Fecha</th><th>Insumo</th><th>Tipo</th><th class="text-end">Cantidad</th><th>Pedido</th><th>Usuario</th><th>Nota</th></tr></thead>
+        @foreach (var m in movimientos)
+        {
+            <tr>
+                <td>@m.FechaHora.ToString("dd/MM HH:mm")</td><td>@m.Insumo</td>
+                <td><span class="badge @ColorTipo(m.Tipo)">@m.Tipo</span></td>
+                <td class="text-end @(m.Cantidad < 0 ? "text-danger" : "text-success")">@(m.Cantidad > 0 ? "+" : "")@m.Cantidad.ToString("0.###") @m.Unidad</td>
+                <td>@(m.PedidoId is null ? "" : "#" + m.PedidoId)</td><td>@m.Usuario</td><td>@m.Nota</td>
+            </tr>
+        }
+    </table>
+    <p class="text-muted small">Se muestran los últimos 100 movimientos.</p>
+}
+
+@code {
+    string tab = "insumos";
+    List<Insumo> insumos = new();
+    List<Plato> platos = new();
+    List<RecetaItem> receta = new();
+    List<MovimientoInventario> movimientos = new();
+    Insumo nuevo = new();
+    Insumo? movInsumo;
+    string movTipo = "Entrada", movNota = "";
+    decimal movCantidad;
+    int platoSel, recInsumo, kardexInsumo, bajos;
+    decimal recCantidad;
+    bool soloBajo, esError;
+    string? mensaje;
+    int usuarioId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        usuarioId = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        platos = await Menu.PlatosAsync();
+        await Recargar();
+        await CargarKardex();
+    }
+
+    async Task Recargar() { insumos = await Inv.InsumosAsync(); bajos = insumos.Count(i => i.Activo && i.StockBajo); }
+    async Task CargarKardex() => movimientos = await Inv.MovimientosAsync(kardexInsumo == 0 ? null : kardexInsumo);
+    async Task CargarReceta() => receta = platoSel == 0 ? new() : await Inv.RecetaAsync(platoSel);
+
+    async Task Ejecutar(Func<Task> accion, string ok)
+    {
+        mensaje = null;
+        try { await accion(); mensaje = ok; esError = false; }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { mensaje = ex.Message; esError = true; }
+        await Recargar(); await CargarKardex();
+    }
+
+    Task GuardarInsumo() => Ejecutar(async () => { await Inv.GuardarInsumoAsync(nuevo, usuarioId); nuevo = new(); }, "Insumo guardado.");
+
+    void SeleccionarMov(Insumo i) { movInsumo = i; movTipo = "Entrada"; movCantidad = 0; movNota = ""; }
+
+    Task RegistrarMov() => Ejecutar(async () =>
+    {
+        await Inv.RegistrarMovimientoAsync(movInsumo!.InsumoId, movTipo, movCantidad, usuarioId, movNota);
+        movInsumo = null;
+    }, "Movimiento registrado.");
+
+    Task GuardarReceta() => Ejecutar(async () => { await Inv.GuardarRecetaItemAsync(platoSel, recInsumo, recCantidad); await CargarReceta(); recCantidad = 0; recInsumo = 0; }, "Receta actualizada.");
+    Task QuitarReceta(int insumoId) => Ejecutar(async () => { await Inv.QuitarRecetaItemAsync(platoSel, insumoId); await CargarReceta(); }, "Ingrediente retirado de la receta.");
+
+    static Insumo Clonar(Insumo i) => new() { InsumoId = i.InsumoId, Nombre = i.Nombre, Unidad = i.Unidad, StockActual = i.StockActual, StockMinimo = i.StockMinimo, CostoUnitario = i.CostoUnitario, Activo = i.Activo };
+
+    static string ColorTipo(string t) => t switch
+    {
+        "Entrada" => "bg-success", "Consumo" => "bg-secondary", "Devolucion" => "bg-info text-dark",
+        "Merma" => "bg-danger", _ => "bg-warning text-dark"
+    };
+}

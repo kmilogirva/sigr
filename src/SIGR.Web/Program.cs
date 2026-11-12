@@ -24,6 +24,7 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<InventarioService>();
 builder.Services.AddScoped<ReservaService>();
 builder.Services.AddScoped<CajaService>();
 
