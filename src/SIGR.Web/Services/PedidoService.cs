@@ -7,6 +7,7 @@ namespace SIGR.Web.Services;
 public class PedidoService(DbConnectionFactory db)
 {
     private record PedidoInfo(int MesaId, string Estado, decimal Total);
+    private record LineaDetalle(int PlatoId, int Cantidad);
 
     public static readonly string[] FlujoEstados = ["Pendiente", "EnPreparacion", "Listo", "Entregado"];
 
@@ -91,6 +92,7 @@ public class PedidoService(DbConnectionFactory db)
             await cn.ExecuteAsync(
                 "INSERT dbo.DetallePedido (PedidoId,PlatoId,Cantidad,PrecioUnitario,Nota) VALUES (@id,@PlatoId,@Cantidad,@precio,@Nota)",
                 new { id, it.PlatoId, it.Cantidad, precio, it.Nota }, tx);
+            await InventarioService.ConsumirAsync(cn, tx, id, it.PlatoId, it.Cantidad);
         }
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @id", new { id }, tx);
         await cn.ExecuteAsync("UPDATE dbo.Mesas SET Estado='Ocupada' WHERE MesaId=@mesaId", new { mesaId }, tx);
@@ -133,6 +135,7 @@ public class PedidoService(DbConnectionFactory db)
             ?? throw new InvalidOperationException("El plato no está disponible.");
         await cn.ExecuteAsync("INSERT dbo.DetallePedido (PedidoId,PlatoId,Cantidad,PrecioUnitario,Nota) VALUES (@pedidoId,@platoId,@cantidad,@precio,@nota)",
             new { pedidoId, platoId, cantidad, precio, nota }, tx);
+        await InventarioService.ConsumirAsync(cn, tx, pedidoId, platoId, cantidad);
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @pedidoId", new { pedidoId }, tx);
         tx.Commit();
     }
@@ -144,7 +147,10 @@ public class PedidoService(DbConnectionFactory db)
         using var tx = cn.BeginTransaction();
         var estado = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId }, tx);
         if (estado is not ("Pendiente" or "EnPreparacion")) throw new InvalidOperationException("El pedido ya no admite cambios.");
+        var linea = await cn.QuerySingleOrDefaultAsync<LineaDetalle>(
+            "SELECT PlatoId, Cantidad FROM dbo.DetallePedido WHERE DetalleId=@detalleId AND PedidoId=@pedidoId", new { detalleId, pedidoId }, tx);
         await cn.ExecuteAsync("DELETE dbo.DetallePedido WHERE DetalleId=@detalleId AND PedidoId=@pedidoId", new { detalleId, pedidoId }, tx);
+        if (linea is not null) await InventarioService.DevolverAsync(cn, tx, pedidoId, linea.PlatoId, linea.Cantidad);
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @pedidoId", new { pedidoId }, tx);
         tx.Commit();
     }
@@ -173,6 +179,7 @@ public class PedidoService(DbConnectionFactory db)
             "SELECT MesaId, Estado, Total FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId }, tx)
             ?? throw new InvalidOperationException("Pedido no encontrado.");
         if (p.Estado is "Pagado" or "Cancelado") throw new InvalidOperationException("El pedido ya está cerrado.");
+        if (metodo is null) await InventarioService.DevolverPedidoAsync(cn, tx, pedidoId);
         if (metodo is not null)
         {
             if (p.Estado != "Entregado") throw new InvalidOperationException("Solo se puede cobrar un pedido entregado.");

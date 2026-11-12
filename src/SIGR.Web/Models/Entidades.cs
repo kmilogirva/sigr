@@ -101,3 +101,40 @@ public class CierreCaja
     public decimal TotalTarjeta { get; set; }
     public string? Observaciones { get; set; }
 }
+
+public class Insumo
+{
+    public int InsumoId { get; set; }
+    public string Nombre { get; set; } = "";
+    public string Unidad { get; set; } = "kg";
+    public decimal StockActual { get; set; }
+    public decimal StockMinimo { get; set; }
+    public decimal CostoUnitario { get; set; }
+    public bool Activo { get; set; } = true;
+    public bool StockBajo => StockActual <= StockMinimo;
+}
+
+public class RecetaItem
+{
+    public int PlatoId { get; set; }
+    public int InsumoId { get; set; }
+    public string Insumo { get; set; } = "";
+    public string Unidad { get; set; } = "";
+    public decimal Cantidad { get; set; }
+    public decimal CostoUnitario { get; set; }
+    public decimal Costo => Cantidad * CostoUnitario;
+}
+
+public class MovimientoInventario
+{
+    public int MovimientoId { get; set; }
+    public int InsumoId { get; set; }
+    public string Insumo { get; set; } = "";
+    public string Unidad { get; set; } = "";
+    public string Tipo { get; set; } = "";
+    public decimal Cantidad { get; set; }
+    public DateTime FechaHora { get; set; }
+    public string? Usuario { get; set; }
+    public int? PedidoId { get; set; }
+    public string? Nota { get; set; }
+}
