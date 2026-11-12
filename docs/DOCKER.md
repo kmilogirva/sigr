@@ -22,6 +22,7 @@ Entorno completo y reproducible para desarrollo y pruebas de calidad: la aplicac
 | `db-init` | `mssql/server:2022-latest` | Ejecuta los scripts `database/01` a `05` y termina |
 | `web` | construida con el `Dockerfile` (SDK 9.0 → runtime `aspnet:9.0`) | La aplicación, sin privilegios de root, en el puerto 8080 |
 | `selenium-tests` | Python 3.12 + Chromium | Pruebas funcionales de interfaz |
+| `playwright-tests` | imagen oficial de Playwright (Python, Chromium) | Pruebas E2E |
 | `newman` | `postman/newman:alpine` | Pruebas de la API REST |
 | `zap` | `ghcr.io/zaproxy/zaproxy:stable` | Escaneo de seguridad base de OWASP ZAP |
 | `k6` | `grafana/k6` | Pruebas de carga y rendimiento |
@@ -36,6 +37,9 @@ docker compose up -d --build
 
 # 2. Pruebas funcionales de interfaz  → tests/evidencia/selenium/ (reporte.html, capturas)
 docker compose --profile tests run --rm selenium-tests
+
+# 2b. Pruebas E2E con Playwright    → tests/evidencia/playwright/ (capturas y trazas)
+docker compose --profile tests run --rm playwright-tests
 
 # 3. Pruebas de la API               → tests/evidencia/postman/resultado.json
 docker compose --profile tests run --rm newman

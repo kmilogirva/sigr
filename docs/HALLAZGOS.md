@@ -15,6 +15,7 @@ Defectos y riesgos encontrados al auditar SIGR con pruebas automatizadas. Cada h
 | H-04 | Un `PasswordHash` con formato inválido hacía que el login respondiera **500** en vez de rechazar al usuario | Media | Newman en Docker (tras recrear la base con hashes ficticios) | **Corregido** | Commit `4865555` (`fix(auth)`) |
 | H-05 | Faltan cabeceras de seguridad HTTP: `X-Content-Type-Options`, `Permissions-Policy`, `Cross-Origin-Embedder-Policy` y una política CSP completa | Baja | OWASP ZAP (reglas 10021, 10063, 90004, 10055) | **Abierto** | Middleware de cabeceras de seguridad (rama a definir, p. ej. `fix/cabeceras-seguridad`) |
 | H-06 | El recurso de Bootstrap Icons se carga desde una CDN sin atributo de integridad (SRI) | Baja | OWASP ZAP (regla 90003) | **Abierto** | Agregar `integrity` y `crossorigin` al `<link>`, o alojar la fuente localmente |
+| H-08 | En Linux/Docker los precios se mostraban como `¤4,500` en lugar de `$ 4.500`: la app dependía de la cultura del sistema operativo | Media | Playwright (capturas del flujo del carrito) | **Corregido** | `UseRequestLocalization` con cultura fija `es-CO` en `Program.cs` (rama `test/e2e-playwright`) |
 | H-07 | ZAP reporta «User Controllable HTML Element Attribute (Potential XSS)» en una página | Baja | OWASP ZAP (regla 10031) | **A revisar** | Probable falso positivo (Blazor codifica el valor reflejado de `ReturnUrl`); confirmar con una prueba manual |
 
 ## Observaciones informativas (sin acción obligatoria)

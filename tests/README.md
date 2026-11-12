@@ -5,6 +5,7 @@ Suite de pruebas funcionales que audita el sistema desde afuera, como lo haría 
 | Carpeta | Herramienta | Qué prueba |
 |---|---|---|
 | `selenium/` | Python + pytest + Selenium (patrón Page Object) | Formularios web: login, registro y control de acceso por rol |
+| `playwright/` | Python + Playwright + pytest | E2E: login por 4 roles, control de acceso y flujo completo del carrito de pedido |
 | `postman/` | Postman + Newman | API REST: menú público, autenticación, autorización y reportes |
 | `k6/` | k6 | Rendimiento: humo y carga sobre lecturas, login y reportes |
 | `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML/JSON y salida de consola |
@@ -14,6 +15,7 @@ Levanta el sistema con una base limpia y ejecuta cada tipo de prueba sin instala
 ```bash
 docker compose up -d --build
 docker compose --profile tests run --rm selenium-tests     # interfaz
+docker compose --profile tests run --rm playwright-tests   # E2E Playwright
 docker compose --profile tests run --rm newman             # API
 docker compose --profile security run --rm zap             # seguridad (OWASP ZAP)
 docker compose --profile performance run --rm k6           # rendimiento
