@@ -10,7 +10,7 @@ Mapa de lo que pide el curso, dónde está la evidencia y qué falta. Sirve para
 |---|---|---|---|---|---|
 | 1 | Línea base del código (SIGR) | Individual | PDF APA | ✅ Entregable generado | Etiqueta `v0.1.0-baseline` (commit `4b4e7f3`); PDF `Taller_LineaBase_SIGR.pdf` |
 | 2 | Taller: scripts automatizados (formulario web + API) | Individual | PDF APA | ✅ Entregable generado | PDF `Taller_Scripts_Automatizados_JuanCamiloGiraldoValencia.pdf`; PR #1 y #2 |
-| 3 | **Taller grupal: automatización de pruebas funcionales (segunda entrega)** | **Equipo** | **PDF, máx. 15 páginas sin portada** | 🔄 En construcción | Ver más abajo |
+| 3 | **Taller: automatización de pruebas funcionales (segunda entrega)** | **Individual (sin grupo)** | **PDF, máx. 15 páginas sin portada** | ✅ Entregable generado (13 páginas) | `Taller_Automatizacion_JuanCamiloGiraldoValencia.pdf` (11/11/2026) |
 
 > Los PDF son entregables locales y **no se versionan** en el repositorio (`docs/*.pdf` está en `.gitignore`).
 
