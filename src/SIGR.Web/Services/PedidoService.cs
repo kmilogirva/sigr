@@ -13,7 +13,7 @@ public class PedidoService(DbConnectionFactory db)
 
     private const string SelectPedido = """
         SELECT p.PedidoId, p.MesaId, m.Numero AS NumeroMesa, u.NombreCompleto AS Mesero,
-               p.FechaHora, p.Estado, p.Total
+               p.FechaHora, p.Estado, p.Total, p.Descuento, p.Propina
         FROM dbo.Pedidos p
         JOIN dbo.Mesas m ON m.MesaId = p.MesaId
         JOIN dbo.Usuarios u ON u.UsuarioId = p.MeseroId
