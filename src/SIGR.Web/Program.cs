@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using SIGR.Web.Components;
 using SIGR.Web.Data;
+using SIGR.Web.Endpoints;
 using SIGR.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +17,19 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.LoginPath = "/login";
         o.AccessDeniedPath = "/acceso-denegado";
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // Las rutas /api responden 401/403 en lugar de redirigir a la página de login.
+        o.Events.OnRedirectToLogin = ctx =>
+        {
+            if (ctx.Request.Path.StartsWithSegments("/api")) ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            else ctx.Response.Redirect(ctx.RedirectUri);
+            return Task.CompletedTask;
+        };
+        o.Events.OnRedirectToAccessDenied = ctx =>
+        {
+            if (ctx.Request.Path.StartsWithSegments("/api")) ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            else ctx.Response.Redirect(ctx.RedirectUri);
+            return Task.CompletedTask;
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
@@ -54,14 +68,7 @@ app.MapPost("/account/login", async (HttpContext ctx, UsuarioService usuarios,
     var u = await usuarios.ValidarAsync(email.Trim(), password);
     if (u is null) return Results.Redirect("/login?error=1");
 
-    var identity = new ClaimsIdentity(new[]
-    {
-        new Claim(ClaimTypes.NameIdentifier, u.UsuarioId.ToString()),
-        new Claim(ClaimTypes.Name, u.NombreCompleto),
-        new Claim(ClaimTypes.Email, u.Email),
-        new Claim(ClaimTypes.Role, u.Rol),
-    }, CookieAuthenticationDefaults.AuthenticationScheme);
-    await ctx.SignInAsync(new ClaimsPrincipal(identity));
+    await ctx.SignInAsync(ApiEndpoints.CrearPrincipal(u));
 
     var destino = !string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//") && !returnUrl.StartsWith("/\\")
         ? returnUrl : "/";
@@ -81,6 +88,8 @@ app.MapPost("/account/logout", async (HttpContext ctx) =>
     await ctx.SignOutAsync();
     return Results.Redirect("/login");
 });
+
+app.MapSigrApi();
 
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
