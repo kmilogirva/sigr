@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Data.SqlClient;
 using SIGR.Web.Data;
 using SIGR.Web.Models;
 
@@ -162,6 +163,7 @@ public class PedidoService(DbConnectionFactory db)
         var estado = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId });
         var i = Array.IndexOf(FlujoEstados, estado);
         if (i < 0 || i >= FlujoEstados.Length - 1) return;
+        if (estado == "Pendiente") await ExigirItemsAsync(cn, pedidoId);   // H-03
         await cn.ExecuteAsync("""
             UPDATE dbo.Pedidos SET Estado=@e,
                 InicioPreparacion = CASE WHEN @e='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,
@@ -186,6 +188,13 @@ public class PedidoService(DbConnectionFactory db)
         return pedidos.Select(p => new ComandaCocina { Pedido = p, Items = items[p.PedidoId].ToList() }).ToList();
     }
 
+    /// <summary>Un pedido vacío no puede salir de «Pendiente» (hallazgo H-03).</summary>
+    private static async Task ExigirItemsAsync(SqlConnection cn, int pedidoId)
+    {
+        var items = await cn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DetallePedido WHERE PedidoId=@pedidoId", new { pedidoId });
+        if (items == 0) throw new InvalidOperationException("El pedido no tiene ítems: agrega al menos un plato antes de avanzarlo.");
+    }
+
     /// <summary>La cocina solo mueve Pendiente → EnPreparacion y EnPreparacion → Listo.</summary>
     public async Task CocinaAvanzarAsync(int pedidoId, string desde)
     {
@@ -196,6 +205,7 @@ public class PedidoService(DbConnectionFactory db)
             _ => throw new ArgumentException("Transición no permitida para la cocina.")
         };
         using var cn = db.Create();
+        if (desde == "Pendiente") await ExigirItemsAsync(cn, pedidoId);   // H-03
         var n = await cn.ExecuteAsync("""
             UPDATE dbo.Pedidos SET Estado=@hacia,
                 InicioPreparacion = CASE WHEN @hacia='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,

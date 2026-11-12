@@ -9,9 +9,9 @@ Defectos y riesgos encontrados al auditar SIGR con pruebas automatizadas. Cada h
 
 | ID | Hallazgo | Severidad | Detectado por | Estado | Corrección |
 |---|---|---|---|---|---|
-| H-01 | `POST /account/register` acepta un correo sin formato válido: solo se valida con `type=email` en el navegador | Media | Selenium `test_s04` | **Abierto** | Rama prevista `fix/validacion-registro`; ya existe `Validaciones.EsCorreoValido` |
-| H-02 | `POST /account/register` acepta un nombre vacío o de solo espacios: solo existe `required` en el navegador | Media | Selenium `test_s05` | **Abierto** | Rama prevista `fix/validacion-registro`; ya existe `Validaciones.EsNombreValido` |
-| H-03 | Un pedido sin ítems puede avanzar hasta *Entregado* (el cobro sí lo bloquea con «el pedido no tiene ítems») | Media | Observado al probar el módulo de pagos | **Abierto** | `PedidoService.AvanzarAsync` debería exigir al menos un ítem para pasar de *Pendiente* |
+| H-01 | `POST /account/register` acepta un correo sin formato válido: solo se valida con `type=email` en el navegador | Media | Selenium `test_s04` | **Corregido** | Commit `c70e5fd` (rama `fix/validacion-registro`); `test_s04` pasa a verde |
+| H-02 | `POST /account/register` acepta un nombre vacío o de solo espacios: solo existe `required` en el navegador | Media | Selenium `test_s05` | **Corregido** | Commit `c70e5fd` (rama `fix/validacion-registro`); `test_s05` pasa a verde |
+| H-03 | Un pedido sin ítems puede avanzar hasta *Entregado* (el cobro sí lo bloquea con «el pedido no tiene ítems») | Media | Observado al probar el módulo de pagos | **Corregido** | Commit `c70e5fd`: `AvanzarAsync` y `CocinaAvanzarAsync` exigen al menos un ítem. Prueba Selenium `test_s06` |
 | H-04 | Un `PasswordHash` con formato inválido hacía que el login respondiera **500** en vez de rechazar al usuario | Media | Newman en Docker (tras recrear la base con hashes ficticios) | **Corregido** | Commit `4865555` (`fix(auth)`) |
 | H-05 | Faltan cabeceras de seguridad HTTP: `X-Content-Type-Options`, `Permissions-Policy`, `Cross-Origin-Embedder-Policy` y una política CSP completa | Baja | OWASP ZAP (reglas 10021, 10063, 90004, 10055) | **Abierto** | Middleware de cabeceras de seguridad (rama a definir, p. ej. `fix/cabeceras-seguridad`) |
 | H-06 | El recurso de Bootstrap Icons se carga desde una CDN sin atributo de integridad (SRI) | Baja | OWASP ZAP (regla 90003) | **Abierto** | Agregar `integrity` y `crossorigin` al `<link>`, o alojar la fuente localmente |

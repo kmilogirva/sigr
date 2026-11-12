@@ -69,7 +69,13 @@
         catch (InvalidOperationException ex) { error = ex.Message; await Cargar(); }
     }
 
-    async Task Avanzar(int id) { await PedidoSvc.AvanzarAsync(id); await Cargar(); }
+    async Task Avanzar(int id)
+    {
+        error = null;
+        try { await PedidoSvc.AvanzarAsync(id); }
+        catch (InvalidOperationException ex) { error = ex.Message; }
+        await Cargar();
+    }
 
     static string Color(string e) => e switch
     {
