@@ -37,5 +37,7 @@ Cronología de lo realizado, con las ramas y los commits de cada hito. Para el d
 
 | **Fase 7:** pruebas E2E con Playwright (16 casos, 16 pasan), comparación con Selenium y cultura es-CO fija | `test/e2e-playwright` |
 
+| **Figuras del informe:** script que genera consolas, gráficos y capturas a partir de la evidencia real | `docs/figuras-informe` |
+
 ## Próximos pasos
 Ver el estado fase por fase en [PLAN_ENTREGA_2.md](PLAN_ENTREGA_2.md). Lo siguiente en el camino mínimo: **fase 1** (corregir H-01 a H-03), **fase 3** (pruebas unitarias) y **fase 5** (integración continua).
