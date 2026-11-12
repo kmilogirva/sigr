@@ -27,10 +27,10 @@ La segunda entrega es la **continuación** del informe anterior: da solución a 
 |---|---|---|---|---|---|
 | 1 | `fix/validacion-registro` | Corregir H-01, H-02 y H-03 en el servidor | .NET | Tests S-04 y S-05 de rojo a verde; nueva S-06 | ✅ Selenium 26/26 en Linux (commits `c70e5fd`, `ef3ba31`) |
 | 2 | `feature/openapi` | Publicar el contrato OpenAPI/Swagger | Microsoft.AspNetCore.OpenApi | `openapi.json`, pantalla Swagger | ⏳ |
-| 3 | `test/unitarias` | Lógica pura: `PagoService`, `Validaciones`, flujo de estados | xUnit, NSubstitute, FluentAssertions, Bogus | Tabla de casos y resultados | ⏳ |
+| 3 | `test/unitarias` | Lógica pura: `PagoService`, `Validaciones`, flujo de estados | xUnit, NSubstitute, FluentAssertions, Bogus | Tabla de casos y resultados | ✅ 102 pruebas pasan; regresión demostrada (6 fallan contra el código anterior) |
 | 4 | `test/integracion` | Servicios y API contra una base limpia | WebApplicationFactory, Testcontainers | Resultados y tiempos | ⏳ |
 | 5 | `ci/github-actions` | Pipeline: compilar, unitarias, integración, Selenium y Newman en cada PR | GitHub Actions + SQL Server | Captura del pipeline verde y de uno rojo | ⏳ |
-| 6 | `test/cobertura` | Cobertura y pruebas de mutación | Coverlet, ReportGenerator, Stryker.NET | Informe de cobertura | ⏳ |
+| 6 | `test/cobertura` | Cobertura y pruebas de mutación | Coverlet, ReportGenerator, Stryker.NET | Informe de cobertura | 🔄 Coverlet medido (global 9,4 %); falta Stryker.NET |
 | 7 | `test/e2e-playwright` | Login y flujo del carrito; comparar con Selenium | Playwright | Trazas, capturas, tabla comparativa | ✅ 16/16 en Linux; comparación en `PRUEBAS_DE_CALIDAD.md` |
 | 8 | `test/seguridad-zap` | Escaneo y corrección de hallazgos | OWASP ZAP, `dotnet list package --vulnerable` | Informe ZAP antes/después | 🔄 escaneo hecho; faltan correcciones (H-05, H-06, H-07) y dependencias |
 | 9 | `test/rendimiento-k6` | Humo, carga, estrés y reservas concurrentes | k6 | Gráficos de latencia y errores | 🔄 humo y carga hechos; faltan estrés y reservas concurrentes |
