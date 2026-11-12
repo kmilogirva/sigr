@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Mesero,Administrador")]
 @inject PedidoService Pedidos
 @inject MenuService MenuSvc
+@inject PagoService PagoSvc
 
 <PageTitle>Pedido #@Id</PageTitle>
 @if (pedido is null) { <p>Pedido no encontrado.</p> }
@@ -38,19 +39,96 @@ else
                 <td class="text-end">@d.Subtotal.ToString("N0")</td><td>@d.Nota</td>
                 <td>@if (pedido.Estado is "Pendiente" or "EnPreparacion") { <button class="btn btn-outline-danger btn-sm" @onclick="() => Quitar(d.DetalleId)">Quitar</button> }</td></tr>
         }
-        <tfoot><tr><th colspan="3" class="text-end">Total</th><th class="text-end">@pedido.Total.ToString("C0")</th><th colspan="2"></th></tr></tfoot>
+        <tfoot>
+            <tr><th colspan="3" class="text-end">Subtotal</th><th class="text-end">@pedido.Total.ToString("C0")</th><th colspan="2"></th></tr>
+            @if (pedido.Estado == "Pagado")
+            {
+                @if (pedido.Descuento > 0) { <tr><td colspan="3" class="text-end">Descuento @(cuponUsado is null ? "" : $"({cuponUsado})")</td><td class="text-end text-success">-@pedido.Descuento.ToString("C0")</td><td colspan="2"></td></tr> }
+                @if (pedido.Propina > 0) { <tr><td colspan="3" class="text-end">Propina</td><td class="text-end">@pedido.Propina.ToString("C0")</td><td colspan="2"></td></tr> }
+                <tr><th colspan="3" class="text-end">Total pagado</th><th class="text-end">@pedido.TotalAPagar.ToString("C0")</th><th colspan="2"></th></tr>
+            }
+        </tfoot>
     </table>
+
+    @if (pedido.Estado == "Pagado")
+    {
+        <div class="card border-0 shadow-sm mb-3"><div class="card-body">
+            <h2 class="h6 fw-bold">Pagos registrados</h2>
+            <ul class="mb-2">@foreach (var pg in pagosHechos) { <li>@pg.Metodo — @pg.Monto.ToString("C0")</li> }</ul>
+            <a class="btn btn-outline-primary btn-sm" href="recibo/@pedido.PedidoId" target="_blank"><i class="bi bi-printer me-1"></i>Ver recibo</a>
+        </div></div>
+    }
+
+    @if (pedido.Estado == "Entregado")
+    {
+        <div class="card border-0 shadow-sm mb-3"><div class="card-body">
+            <h2 class="h5 fw-bold mb-3"><i class="bi bi-cash-coin me-2"></i>Cobrar pedido</h2>
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <label class="form-label fw-semibold">Cupón de descuento</label>
+                    <div class="input-group mb-1">
+                        <input class="form-control" placeholder="Código" maxlength="20" @bind="cuponCodigo" @bind:event="oninput" disabled="@(cupon is not null)" />
+                        @if (cupon is null) { <button class="btn btn-outline-primary" @onclick="AplicarCupon">Aplicar</button> }
+                        else { <button class="btn btn-outline-danger" @onclick="QuitarCupon">Quitar</button> }
+                    </div>
+                    @if (!string.IsNullOrEmpty(errorCupon)) { <div class="text-danger small">@errorCupon</div> }
+                    @if (cupon is not null) { <div class="text-success small">Cupón @cupon.Codigo aplicado: -@Descuento.ToString("C0")</div> }
+
+                    <label class="form-label fw-semibold mt-3">Propina</label>
+                    <div class="btn-group w-100 mb-2">
+                        @foreach (var op in new[] { 0, 5, 10, 15 })
+                        {
+                            var o = op;
+                            <button class="btn btn-sm @(propinaOpcion == o ? "btn-primary" : "btn-outline-primary")" @onclick="() => propinaOpcion = o">@(o == 0 ? "Sin propina" : o + "%")</button>
+                        }
+                        <button class="btn btn-sm @(propinaOpcion == -1 ? "btn-primary" : "btn-outline-primary")" @onclick="() => propinaOpcion = -1">Otro</button>
+                    </div>
+                    @if (propinaOpcion == -1) { <input type="number" min="0" class="form-control form-control-sm" placeholder="Valor de la propina" @bind="propinaCustom" /> }
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="bg-light rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between"><span>Subtotal</span><span>@pedido.Total.ToString("C0")</span></div>
+                        @if (Descuento > 0) { <div class="d-flex justify-content-between text-success"><span>Descuento</span><span>-@Descuento.ToString("C0")</span></div> }
+                        <div class="d-flex justify-content-between"><span>Propina</span><span>@Propina.ToString("C0")</span></div>
+                        <hr class="my-2" />
+                        <div class="d-flex justify-content-between fs-5 fw-bold"><span>Total a pagar</span><span>@TotalAPagar.ToString("C0")</span></div>
+                    </div>
+
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="dividir" @bind="dividir" />
+                        <label class="form-check-label" for="dividir">Dividir la cuenta entre varios métodos</label>
+                    </div>
+
+                    @if (!dividir)
+                    {
+                        <select class="form-select mb-3" @bind="metodoUnico">
+                            @foreach (var m in PagoService.Metodos) { <option>@m</option> }
+                        </select>
+                    }
+                    else
+                    {
+                        @foreach (var f in filas)
+                        {
+                            <div class="input-group input-group-sm mb-1">
+                                <select class="form-select" @bind="f.Metodo">@foreach (var m in PagoService.Metodos) { <option>@m</option> }</select>
+                                <input type="number" min="0" class="form-control" @bind="f.Monto" />
+                                <button class="btn btn-outline-danger" @onclick="() => filas.Remove(f)">✕</button>
+                            </div>
+                        }
+                        <button class="btn btn-outline-secondary btn-sm mb-2" @onclick="AgregarFila"><i class="bi bi-plus"></i> Agregar pago</button>
+                        <div class="small mb-3 @(Restante == 0 ? "text-success" : "text-danger")">Restante por asignar: @Restante.ToString("C0")</div>
+                    }
+                    <button class="btn btn-success w-100" @onclick="Cobrar" disabled="@(dividir && Restante != 0)"><i class="bi bi-check2-circle me-1"></i>Confirmar cobro</button>
+                </div>
+            </div>
+        </div></div>
+    }
 
     @if (pedido.Estado is not ("Pagado" or "Cancelado"))
     {
         <div class="d-flex gap-2">
             @if (pedido.Estado != "Entregado") { <button class="btn btn-success" @onclick="Avanzar">Avanzar estado ▸</button> }
-            else
-            {
-                <button class="btn btn-success" @onclick='() => Pagar("Efectivo")'>Cobrar efectivo</button>
-                <button class="btn btn-success" @onclick='() => Pagar("Tarjeta")'>Cobrar tarjeta</button>
-                <button class="btn btn-success" @onclick='() => Pagar("Transferencia")'>Cobrar transferencia</button>
-            }
             <button class="btn btn-outline-danger ms-auto" @onclick="Cancelar">Cancelar pedido</button>
         </div>
     }
@@ -58,16 +136,36 @@ else
 }
 
 @code {
+    class FilaPago { public string Metodo { get; set; } = "Efectivo"; public decimal Monto { get; set; } }
+
     [Parameter] public int Id { get; set; }
     Pedido? pedido;
     List<DetallePedido> detalle = new();
     List<Plato> platos = new();
+    List<Pago> pagosHechos = new();
     int platoSel, cantidad = 1;
-    string? nota, error;
+    string? nota, error, errorCupon, cuponUsado;
+
+    // estado del panel de cobro
+    string cuponCodigo = "", metodoUnico = "Efectivo";
+    Cupon? cupon;
+    int propinaOpcion = 10;
+    decimal propinaCustom;
+    bool dividir;
+    readonly List<FilaPago> filas = new();
+
+    decimal Descuento => cupon is null || pedido is null ? 0 : PagoService.CalcularDescuento(cupon, pedido.Total);
+    decimal Propina => pedido is null ? 0 : propinaOpcion == -1 ? Math.Max(propinaCustom, 0) : PagoService.CalcularPropina(pedido.Total - Descuento, propinaOpcion);
+    decimal TotalAPagar => pedido is null ? 0 : pedido.Total - Descuento + Propina;
+    decimal Restante => TotalAPagar - filas.Sum(f => f.Monto);
 
     protected override async Task OnInitializedAsync() { platos = await MenuSvc.PlatosAsync(soloDisponibles: true); await Cargar(); }
 
-    async Task Cargar() { pedido = await Pedidos.ObtenerAsync(Id); detalle = await Pedidos.DetalleAsync(Id); }
+    async Task Cargar()
+    {
+        pedido = await Pedidos.ObtenerAsync(Id); detalle = await Pedidos.DetalleAsync(Id);
+        if (pedido?.Estado == "Pagado") { pagosHechos = await PagoSvc.PagosDePedidoAsync(Id); cuponUsado = await PagoSvc.CodigoCuponDePedidoAsync(Id); }
+    }
 
     async Task Ejecutar(Func<Task> accion)
     {
@@ -79,6 +177,25 @@ else
     Task Agregar() => Ejecutar(async () => { await Pedidos.AgregarItemAsync(Id, platoSel, cantidad, string.IsNullOrWhiteSpace(nota) ? null : nota); platoSel = 0; cantidad = 1; nota = null; });
     Task Quitar(int detalleId) => Ejecutar(() => Pedidos.QuitarItemAsync(Id, detalleId));
     Task Avanzar() => Ejecutar(() => Pedidos.AvanzarAsync(Id));
-    Task Pagar(string metodo) => Ejecutar(() => Pedidos.PagarAsync(Id, metodo));
     Task Cancelar() => Ejecutar(() => Pedidos.CancelarAsync(Id));
+
+    async Task AplicarCupon()
+    {
+        errorCupon = null;
+        try { cupon = await PagoSvc.ValidarCuponAsync(cuponCodigo); }
+        catch (InvalidOperationException ex) { errorCupon = ex.Message; cupon = null; }
+    }
+
+    void QuitarCupon() { cupon = null; cuponCodigo = ""; errorCupon = null; }
+
+    void AgregarFila() => filas.Add(new FilaPago { Metodo = PagoService.Metodos[filas.Count % PagoService.Metodos.Length], Monto = Math.Max(Restante, 0) });
+
+    Task Cobrar() => Ejecutar(async () =>
+    {
+        var pagos = TotalAPagar == 0
+            ? new List<PagoService.PagoParcial>()
+            : dividir ? filas.Where(f => f.Monto > 0).Select(f => new PagoService.PagoParcial(f.Metodo, f.Monto)).ToList()
+                      : new List<PagoService.PagoParcial> { new(metodoUnico, TotalAPagar) };
+        await PagoSvc.CobrarAsync(Id, cupon?.Codigo, Propina, pagos);
+    });
 }

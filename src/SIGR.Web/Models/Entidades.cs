@@ -47,7 +47,11 @@ public class Pedido
     public string Mesero { get; set; } = "";
     public DateTime FechaHora { get; set; }
     public string Estado { get; set; } = "Pendiente";
+    /// <summary>Subtotal de los ítems.</summary>
     public decimal Total { get; set; }
+    public decimal Descuento { get; set; }
+    public decimal Propina { get; set; }
+    public decimal TotalAPagar => Total - Descuento + Propina;
 }
 
 public class DetallePedido
@@ -137,4 +141,26 @@ public class MovimientoInventario
     public string? Usuario { get; set; }
     public int? PedidoId { get; set; }
     public string? Nota { get; set; }
+}
+
+public class Cupon
+{
+    public int CuponId { get; set; }
+    public string Codigo { get; set; } = "";
+    public string Tipo { get; set; } = "Porcentaje";
+    public decimal Valor { get; set; }
+    public DateTime VigenteDesde { get; set; } = DateTime.Today;
+    public DateTime VigenteHasta { get; set; } = DateTime.Today.AddMonths(1);
+    public int? UsosMaximos { get; set; }
+    public int UsosActuales { get; set; }
+    public bool Activo { get; set; } = true;
+}
+
+public class Pago
+{
+    public int PagoId { get; set; }
+    public int PedidoId { get; set; }
+    public string Metodo { get; set; } = "";
+    public decimal Monto { get; set; }
+    public DateTime FechaHora { get; set; }
 }
