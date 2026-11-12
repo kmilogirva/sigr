@@ -1,5 +1,6 @@
 """Fixtures compartidas: navegador, capturas de evidencia y limpieza de datos de prueba."""
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -35,7 +36,7 @@ def driver():
 def evidencia(driver, request):
     """Devuelve una función que guarda una captura numerada del paso actual."""
     contador = {"n": 0}
-    base = request.node.name.replace("[", "_").replace("]", "").replace("/", "-")[:80]
+    base = re.sub(r"[^A-Za-z0-9._-]+", "_", request.node.name)[:80]
 
     def capturar(paso: str):
         contador["n"] += 1
@@ -53,7 +54,7 @@ def pytest_runtest_makereport(item, call):
     rep = outcome.get_result()
     drv = item.funcargs.get("driver") if hasattr(item, "funcargs") else None
     if rep.when == "call" and rep.failed and drv is not None:
-        nombre = item.name.replace("[", "_").replace("]", "")[:80]
+        nombre = re.sub(r"[^A-Za-z0-9._-]+", "_", item.name)[:80]
         drv.save_screenshot(str(config.EVIDENCIA / f"FALLO__{nombre}.png"))
 
 
