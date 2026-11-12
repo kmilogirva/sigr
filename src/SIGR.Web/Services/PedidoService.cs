@@ -13,7 +13,7 @@ public class PedidoService(DbConnectionFactory db)
 
     private const string SelectPedido = """
         SELECT p.PedidoId, p.MesaId, m.Numero AS NumeroMesa, u.NombreCompleto AS Mesero,
-               p.FechaHora, p.Estado, p.Total, p.Descuento, p.Propina
+               p.FechaHora, p.Estado, p.Total, p.Descuento, p.Propina, p.InicioPreparacion, p.ListoEn
         FROM dbo.Pedidos p
         JOIN dbo.Mesas m ON m.MesaId = p.MesaId
         JOIN dbo.Usuarios u ON u.UsuarioId = p.MeseroId
@@ -162,7 +162,58 @@ public class PedidoService(DbConnectionFactory db)
         var estado = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId });
         var i = Array.IndexOf(FlujoEstados, estado);
         if (i < 0 || i >= FlujoEstados.Length - 1) return;
-        await cn.ExecuteAsync("UPDATE dbo.Pedidos SET Estado=@e WHERE PedidoId=@pedidoId", new { e = FlujoEstados[i + 1], pedidoId });
+        await cn.ExecuteAsync("""
+            UPDATE dbo.Pedidos SET Estado=@e,
+                InicioPreparacion = CASE WHEN @e='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,
+                ListoEn           = CASE WHEN @e='Listo'         THEN SYSDATETIME() ELSE ListoEn END
+            WHERE PedidoId=@pedidoId
+            """, new { e = FlujoEstados[i + 1], pedidoId });
+    }
+
+    // ---------------- Cocina ----------------
+    /// <summary>Comandas que la cocina debe atender o que están listas para entregar.</summary>
+    public async Task<List<ComandaCocina>> ComandasAsync()
+    {
+        using var cn = db.Create();
+        var pedidos = (await cn.QueryAsync<Pedido>(SelectPedido + " WHERE p.Estado IN ('Pendiente','EnPreparacion','Listo') ORDER BY p.FechaHora")).ToList();
+        if (pedidos.Count == 0) return new();
+        var ids = pedidos.Select(p => p.PedidoId).ToArray();
+        var items = (await cn.QueryAsync<DetallePedido>("""
+            SELECT d.DetalleId, d.PedidoId, d.PlatoId, pl.Nombre AS Plato, d.Cantidad, d.PrecioUnitario, d.Subtotal, d.Nota
+            FROM dbo.DetallePedido d JOIN dbo.Platos pl ON pl.PlatoId = d.PlatoId
+            WHERE d.PedidoId IN @ids ORDER BY d.DetalleId
+            """, new { ids })).ToLookup(d => d.PedidoId);
+        return pedidos.Select(p => new ComandaCocina { Pedido = p, Items = items[p.PedidoId].ToList() }).ToList();
+    }
+
+    /// <summary>La cocina solo mueve Pendiente → EnPreparacion y EnPreparacion → Listo.</summary>
+    public async Task CocinaAvanzarAsync(int pedidoId, string desde)
+    {
+        var hacia = desde switch
+        {
+            "Pendiente" => "EnPreparacion",
+            "EnPreparacion" => "Listo",
+            _ => throw new ArgumentException("Transición no permitida para la cocina.")
+        };
+        using var cn = db.Create();
+        var n = await cn.ExecuteAsync("""
+            UPDATE dbo.Pedidos SET Estado=@hacia,
+                InicioPreparacion = CASE WHEN @hacia='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,
+                ListoEn           = CASE WHEN @hacia='Listo'         THEN SYSDATETIME() ELSE ListoEn END
+            WHERE PedidoId=@pedidoId AND Estado=@desde
+            """, new { pedidoId, desde, hacia });
+        if (n == 0) throw new InvalidOperationException("El pedido ya cambió de estado.");
+    }
+
+    /// <summary>Minutos promedio entre inicio de preparación y listo, de los pedidos de hoy.</summary>
+    public async Task<double?> PromedioPreparacionHoyAsync()
+    {
+        using var cn = db.Create();
+        return await cn.ExecuteScalarAsync<double?>("""
+            SELECT AVG(CAST(DATEDIFF(SECOND, InicioPreparacion, ListoEn) AS FLOAT)) / 60.0
+            FROM dbo.Pedidos
+            WHERE ListoEn IS NOT NULL AND InicioPreparacion IS NOT NULL AND CAST(ListoEn AS DATE) = CAST(SYSDATETIME() AS DATE)
+            """);
     }
 
     public Task CancelarAsync(int pedidoId) => CerrarAsync(pedidoId, null);
