@@ -45,7 +45,15 @@ public class UsuarioService(DbConnectionFactory db, IConfiguration config, IHost
     /// <summary>Registro público: siempre crea un usuario con rol Cliente.</summary>
     public async Task<(bool Ok, string? Error)> RegistrarClienteAsync(string nombre, string email, string? telefono, string password)
     {
-        if (password.Length < 6) return (false, "La contraseña debe tener al menos 6 caracteres.");
+        // Validación en el servidor (H-01, H-02): el navegador puede saltarse con facilidad.
+        if (!Validaciones.EsNombreValido(nombre)) return (false, "El nombre es obligatorio (máximo 100 caracteres).");
+        if (!Validaciones.EsCorreoValido(email)) return (false, "El correo no tiene un formato válido.");
+        if (!Validaciones.EsClaveValida(password)) return (false, $"La contraseña debe tener al menos {Validaciones.ClaveMinima} caracteres.");
+        if (telefono is { Length: > 20 }) return (false, "El teléfono admite máximo 20 caracteres.");
+        nombre = nombre.Trim();
+        email = email.Trim();
+        telefono = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim();
+
         using var cn = db.Create();
         var existe = await cn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.Usuarios WHERE Email=@email", new { email });
         if (existe > 0) return (false, "Ya existe un usuario con ese correo.");
