@@ -1,4 +1,5 @@
 """Fixtures compartidas: navegador, capturas de evidencia y limpieza de datos de prueba."""
+import os
 import shutil
 import subprocess
 import time
@@ -6,6 +7,7 @@ import time
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 import config
 
@@ -18,7 +20,13 @@ def driver():
         opts.add_argument("--headless=new")
     opts.add_argument("--ignore-certificate-errors")  # certificado de desarrollo autofirmado
     opts.add_argument("--window-size=1366,850")
-    d = webdriver.Chrome(options=opts)
+    if os.getenv("SIGR_NO_SANDBOX") == "1":  # necesario al ejecutar Chrome como root dentro de un contenedor
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+    if os.getenv("CHROME_BIN"):
+        opts.binary_location = os.environ["CHROME_BIN"]
+    service = Service(executable_path=os.environ["CHROMEDRIVER"]) if os.getenv("CHROMEDRIVER") else Service()
+    d = webdriver.Chrome(options=opts, service=service)
     yield d
     d.quit()
 
