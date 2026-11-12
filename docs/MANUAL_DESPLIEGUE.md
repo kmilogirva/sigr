@@ -10,6 +10,7 @@
 ## 2. Base de datos
 1. Ejecutar `database/01_schema.sql` (**borra y recrea** la base `SIGR`).
 2. Ejecutar `database/02_seed.sql` (datos ficticios).
+3. Ejecutar, en orden, los módulos añadidos: `database/03_inventario.sql`, `database/04_pagos_avanzados.sql` y `database/05_cocina.sql`. No borran nada y se pueden aplicar sobre una base existente. **La aplicación actual requiere los tres scripts.**
 
 Usar `-I` (QUOTED_IDENTIFIER) y `-f 65001` (UTF-8) en `sqlcmd`; en SSMS abrir el archivo como UTF-8.
 
@@ -25,6 +26,9 @@ Roles 1─* Usuarios 1─* Reservas *─1 Mesas 1─* Pedidos 1─* DetallePedid
 | Mesas, Reservas | Salón y reservas (`UQ MesaId+FechaHora`) |
 | Pedidos, DetallePedido | Comandas; `Subtotal` es columna calculada |
 | Pagos, CierresCaja | Cobros y cierre diario |
+| Insumos, Recetas, MovimientosInventario | Inventario, recetas por plato y kardex |
+| Cupones (y columnas Descuento, Propina, CuponId en Pedidos) | Pagos avanzados |
+| Rol Cocinero (y columnas InicioPreparacion, ListoEn en Pedidos) | Cocina y tiempos de preparación |
 | vw_VentasDiarias, vw_PlatosMasVendidos | Reportes |
 | sp_RecalcularTotalPedido, sp_CerrarCaja | Procedimientos de apoyo |
 
@@ -54,3 +58,6 @@ Desplegar `publish/` en IIS (Hosting Bundle .NET 9) o ejecutar `dotnet SIGR.Web.
 2. Abrir *Reportes*: deben verse ventas de los últimos días.
 3. Como mesero, crear un pedido en una mesa libre, agregar ítems, avanzar hasta *Entregado* y cobrar.
 4. Como cliente, crear una reserva a futuro.
+5. Como administrador, abrir *Inventario*: debe verse al menos un insumo con alerta de stock bajo.
+6. Como mesero, cobrar un pedido entregado con el cupón `BIENVENIDA10` y propina, y abrir el recibo.
+7. Como `cocina@sigr.test`, abrir *Cocina* y pasar una comanda de nueva a lista.
