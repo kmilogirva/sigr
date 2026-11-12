@@ -25,7 +25,7 @@ La segunda entrega es la **continuación** del informe anterior: da solución a 
 ## Fases y ramas
 | # | Rama | Qué se hace | Herramientas | Evidencia para el informe | Estado |
 |---|---|---|---|---|---|
-| 1 | `fix/validacion-registro` | Corregir H-01 y H-02 (y H-03) en el servidor | .NET | Tests S-04 y S-05 de rojo a verde | ⏳ |
+| 1 | `fix/validacion-registro` | Corregir H-01, H-02 y H-03 en el servidor | .NET | Tests S-04 y S-05 de rojo a verde; nueva S-06 | ✅ Selenium 26/26 en Linux (commits `c70e5fd`, `ef3ba31`) |
 | 2 | `feature/openapi` | Publicar el contrato OpenAPI/Swagger | Microsoft.AspNetCore.OpenApi | `openapi.json`, pantalla Swagger | ⏳ |
 | 3 | `test/unitarias` | Lógica pura: `PagoService`, `Validaciones`, flujo de estados | xUnit, NSubstitute, FluentAssertions, Bogus | Tabla de casos y resultados | ⏳ |
 | 4 | `test/integracion` | Servicios y API contra una base limpia | WebApplicationFactory, Testcontainers | Resultados y tiempos | ⏳ |
