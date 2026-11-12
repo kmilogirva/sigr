@@ -6,9 +6,22 @@ Suite de pruebas funcionales que audita el sistema desde afuera, como lo haría 
 |---|---|---|
 | `selenium/` | Python + pytest + Selenium (patrón Page Object) | Formularios web: login, registro y control de acceso por rol |
 | `postman/` | Postman + Newman | API REST: menú público, autenticación, autorización y reportes |
-| `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML y salida de consola |
+| `k6/` | k6 | Rendimiento: humo y carga sobre lecturas, login y reportes |
+| `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML/JSON y salida de consola |
 
-## Requisitos
+## Ejecución en contenedores Linux (recomendada)
+Levanta el sistema con una base limpia y ejecuta cada tipo de prueba sin instalar nada. Detalle en [`docs/DOCKER.md`](../docs/DOCKER.md).
+```bash
+docker compose up -d --build
+docker compose --profile tests run --rm selenium-tests     # interfaz
+docker compose --profile tests run --rm newman             # API
+docker compose --profile security run --rm zap             # seguridad (OWASP ZAP)
+docker compose --profile performance run --rm k6           # rendimiento
+```
+Resultados vigentes, hallazgos y estrategia: [`docs/PRUEBAS_DE_CALIDAD.md`](../docs/PRUEBAS_DE_CALIDAD.md) y [`docs/HALLAZGOS.md`](../docs/HALLAZGOS.md).
+
+## Ejecución local en Windows
+### Requisitos
 - App en ejecución: `cd src/SIGR.Web && dotnet run --launch-profile https` (https://localhost:7072) con la base `SIGR` y datos ficticios.
 - Python 3.10+ y Chrome. `pip install -r tests/selenium/requirements.txt`
 - Node.js (solo para Newman): se usa con `npx newman`, sin instalación global.

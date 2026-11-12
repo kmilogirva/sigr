@@ -63,6 +63,8 @@ src/SIGR.Web/
   Services/    lógica y acceso a datos (Dapper)
   Components/  páginas y layout Blazor
 ```
+Toda la documentación (calidad, hallazgos, plan de entregas, bitácora y decisiones) está indexada en [docs/README.md](docs/README.md). Entorno en contenedores: [docs/DOCKER.md](docs/DOCKER.md).
+
 Flujo de ramas y commits: [docs/GUIA_GIT.md](docs/GUIA_GIT.md) · Despliegue: [docs/MANUAL_DESPLIEGUE.md](docs/MANUAL_DESPLIEGUE.md).
 
 ## Licencia
