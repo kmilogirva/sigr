@@ -33,6 +33,9 @@ Defectos y riesgos encontrados al auditar SIGR con pruebas automatizadas. Cada h
 - La clave mínima de 6 caracteres se valida en el navegador **y** en el servidor. Selenium F-07a/b.
 - ZAP baseline: **0 fallos**, 57 reglas superadas, 11 advertencias.
 
+## Regresión automatizada de los hallazgos corregidos
+H-01, H-02 y H-03 están protegidos por pruebas en tres niveles: unitarias (`UsuarioServiceTests`, `ValidacionesTests`), interfaz (Selenium S-04, S-05 y S-06) y, para el registro, el servidor real. Contra el código anterior a la corrección, 6 pruebas unitarias fallan.
+
 ## Cómo agregar un hallazgo
 1. Asigna el siguiente `H-0N`.
 2. Registra: descripción, severidad, quién lo detectó (herramienta o caso), estado y la rama que lo corrige.

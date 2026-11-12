@@ -180,6 +180,64 @@ def grafico_k6():
     print("figura grafico_k6_latencia.png")
 
 
+
+# ---------------------------------------------------------------- pruebas unitarias
+def unitarias():
+    base = EV / "unitarias"
+    trx = base / "cobertura" / "resultados.trx"
+    if trx.exists():
+        ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+        raiz = ET.parse(trx).getroot()
+        clase_de = {}
+        for ut in raiz.iterfind(".//t:UnitTest", ns):
+            tm = ut.find("t:TestMethod", ns)
+            clase_de[ut.get("id")] = tm.get("className").split(".")[-1]
+        cuenta, falla = {}, {}
+        for r in raiz.iterfind(".//t:UnitTestResult", ns):
+            c = clase_de.get(r.get("testId"), "?")
+            cuenta[c] = cuenta.get(c, 0) + 1
+            if r.get("outcome") != "Passed":
+                falla[c] = falla.get(c, 0) + 1
+        nombres = list(cuenta)
+        fig, ax = plt.subplots(figsize=(7.5, 3.4))
+        ax.barh(nombres, [cuenta[n] - falla.get(n, 0) for n in nombres], color=GREEN, label="Pasan")
+        ax.barh(nombres, [falla.get(n, 0) for n in nombres], left=[cuenta[n] - falla.get(n, 0) for n in nombres], color=RED, label="Fallan")
+        for i, n in enumerate(nombres):
+            ax.text(cuenta[n] + 0.8, i, str(cuenta[n]), va="center", fontsize=9)
+        ax.set_xlabel(f"Pruebas unitarias xUnit (total: {sum(cuenta.values())}, todas pasan)" if not falla else "Pruebas unitarias xUnit")
+        ax.spines[["top", "right"]].set_visible(False); ax.invert_yaxis(); ax.legend(frameon=False)
+        fig.savefig(OUT / "grafico_unitarias_por_clase.png", dpi=200, bbox_inches="tight"); plt.close(fig)
+        print("figura grafico_unitarias_por_clase.png")
+
+    cob = base / "cobertura_por_clase.json"
+    if cob.exists():
+        d = json.loads(cob.read_text(encoding="utf-8"))
+        def pct(k):
+            v = d.get(k)
+            return 100 * v["cubiertas"] / v["total"] if v and v["total"] else 0
+        clases = [("Validaciones", "SIGR.Web.Services.Validaciones"), ("PagoService", "SIGR.Web.Services.PagoService"),
+                  ("UsuarioService", "SIGR.Web.Services.UsuarioService"), ("InventarioService", "SIGR.Web.Services.InventarioService"),
+                  ("PedidoService", "SIGR.Web.Services.PedidoService")]
+        vals = [pct(k) for _, k in clases]
+        fig, ax = plt.subplots(figsize=(7.5, 3.4))
+        cols = [GREEN if v >= 80 else GOLD if v >= 20 else RED for v in vals]
+        ax.bar([c[0] for c in clases], vals, color=cols)
+        for i, v in enumerate(vals):
+            ax.text(i, v + 2, f"{v:.0f} %", ha="center", fontsize=9)
+        ax.set_ylim(0, 112); ax.set_ylabel("Líneas cubiertas por pruebas unitarias (%)")
+        ax.spines[["top", "right"]].set_visible(False); ax.grid(axis="y", alpha=.25)
+        ax.tick_params(axis="x", labelsize=9)
+        fig.savefig(OUT / "grafico_cobertura.png", dpi=200, bbox_inches="tight"); plt.close(fig)
+        print("figura grafico_cobertura.png")
+
+    reg = base / "regresion_h01_h02.log"
+    if reg.exists():
+        l = [x.rstrip() for x in reg.read_text(encoding="utf-8", errors="replace").splitlines() if x.strip()]
+        l = [re.sub(r"\s*\[.*?\]$", "", x) for x in l]
+        l = [x.replace("Registro_publico_rechaza_datos_invalidos", "Registro_rechaza_datos_invalidos") for x in l]
+        texto_a_imagen(["Pruebas unitarias contra el codigo ANTES de la correccion (commit 29db872)", "Resultado: 6 de 16 fallan", ""] + l[:16],
+                       OUT / "consola_regresion_h01_h02.png", "dotnet test - regresion de H-01 y H-02", ancho=1250)
+
 # ---------------------------------------------------------------- ZAP y capturas
 def captura_zap():
     informe = EV / "zap" / "informe_zap.html"
@@ -220,6 +278,7 @@ if __name__ == "__main__":
     grafico_resultados()
     grafico_comparacion()
     grafico_k6()
+    unitarias()
     captura_zap()
     copiar_capturas()
     print("Figuras en", OUT)
