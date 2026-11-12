@@ -1,0 +1,705 @@
+{
+  "info": {
+    "name": "SIGR - Pruebas de API REST",
+    "description": "Colección de pruebas funcionales de la API de SIGR. Ejecutar con la app en https://localhost:7072. Las carpetas se ejecutan en orden: la segunda depende de la sesión (cookie) creada por sus propias peticiones.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Menú público",
+      "item": [
+        {
+          "name": "API-01 Listar platos disponibles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type es JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+                  "pm.test(\"Responde en menos de 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));",
+                  "const platos = pm.response.json();",
+                  "pm.test(\"Devuelve una lista con platos\", () => { pm.expect(platos).to.be.an(\"array\").that.is.not.empty; });",
+                  "pm.test(\"Cada plato cumple el esquema\", () => platos.forEach(p => {",
+                  "  pm.expect(p).to.have.all.keys(\"platoId\", \"nombre\", \"descripcion\", \"categoria\", \"precio\");",
+                  "  pm.expect(p.platoId).to.be.a(\"number\"); pm.expect(p.nombre).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(p.precio).to.be.above(0);",
+                  "}));",
+                  "pm.collectionVariables.set(\"platoId\", platos[0].platoId);",
+                  "pm.collectionVariables.set(\"platoNombre\", platos[0].nombre);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/platos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "platos"
+              ]
+            },
+            "description": "Caso de prueba API-01. Ruta pública, no requiere sesión."
+          }
+        },
+        {
+          "name": "API-02 Filtrar platos por categoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "const platos = pm.response.json();",
+                  "pm.test(\"Hay platos en la categoría\", () => pm.expect(platos).to.not.be.empty);",
+                  "pm.test(\"Todos pertenecen a Bebidas\", () => platos.forEach(p => pm.expect(p.categoria).to.eql(\"Bebidas\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/platos?categoria=Bebidas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "platos"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "Bebidas"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-03 Categoría inexistente devuelve lista vacía",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"La lista está vacía\", () => pm.expect(pm.response.json()).to.be.an(\"array\").that.is.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/platos?categoria=CategoriaQueNoExiste",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "platos"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "CategoriaQueNoExiste"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-04 Consultar plato por id (encadenado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Es el plato solicitado (variable de API-01)\", () => {",
+                  "  pm.expect(p.platoId).to.eql(Number(pm.collectionVariables.get(\"platoId\")));",
+                  "  pm.expect(p.nombre).to.eql(pm.collectionVariables.get(\"platoNombre\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/platos/{{platoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "platos",
+                "{{platoId}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-05 Plato inexistente devuelve 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Incluye mensaje de error\", () => pm.expect(pm.response.json().error).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/platos/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "platos",
+                "999999"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticación, autorización y reportes",
+      "item": [
+        {
+          "name": "API-06 Reportes sin sesión devuelve 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ]
+            },
+            "description": "Debe responder 401 y no redirigir al login (no hay HTML en la respuesta)."
+          }
+        },
+        {
+          "name": "API-07 Login sin datos devuelve 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje de campos obligatorios\", () => pm.expect(pm.response.json().error).to.include(\"obligatorios\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-08 Login con clave incorrecta devuelve 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Mensaje genérico (no revela si el correo existe)\", () => pm.expect(pm.response.json().error).to.include(\"incorrectos\"));",
+                  "pm.test(\"No emite cookie de sesión\", () => pm.expect(pm.cookies.has(\".AspNetCore.Cookies\")).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{clienteEmail}}\", \"password\": \"ClaveEquivocada1\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-09 Login válido como Cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde en menos de 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));",
+                  "pm.test(\"Devuelve nombre y rol Cliente\", () => { const j = pm.response.json(); pm.expect(j.rol).to.eql(\"Cliente\"); pm.expect(j.nombreCompleto).to.not.be.empty; });",
+                  "pm.test(\"Emite cookie de sesión\", () => pm.expect(pm.cookies.has(\".AspNetCore.Cookies\")).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{clienteEmail}}\", \"password\": \"{{demoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-10 Cliente no puede ver reportes (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ]
+            },
+            "description": "Autenticado pero sin rol Administrador."
+          }
+        },
+        {
+          "name": "API-11 Login válido como Administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Rol Administrador\", () => pm.expect(pm.response.json().rol).to.eql(\"Administrador\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{demoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-12 Administrador consulta ventas diarias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type es JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+                  "pm.test(\"Responde en menos de 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));",
+                  "const v = pm.response.json();",
+                  "pm.test(\"Cada día cumple el esquema\", () => v.forEach(d => {",
+                  "  pm.expect(d).to.have.all.keys(\"fecha\", \"numPedidos\", \"totalVentas\");",
+                  "  pm.expect(d.numPedidos).to.be.at.least(0); pm.expect(d.totalVentas).to.be.at.least(0);",
+                  "}));",
+                  "pm.test(\"Ordenado de la fecha más reciente a la más antigua\", () => {",
+                  "  for (let i = 1; i < v.length; i++) pm.expect(new Date(v[i-1].fecha) >= new Date(v[i].fecha)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas?dias=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "7"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-13 Valor límite: dias=0 devuelve 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas?dias=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-14 Valor límite: dias=366 devuelve 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas?dias=366",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "366"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-15 Tipo inválido: dias=abc devuelve 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas?dias=abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "abc"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-16 Top de platos respeta el parámetro top",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.test(\"No supera el límite pedido\", () => pm.expect(t.length).to.be.at.most(5));",
+                  "pm.test(\"Ordenado por unidades vendidas\", () => { for (let i = 1; i < t.length; i++) pm.expect(t[i-1].unidadesVendidas >= t[i].unidadesVendidas).to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/top-platos?top=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "top-platos"
+              ],
+              "query": [
+                {
+                  "key": "top",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-17 Cerrar sesión devuelve 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-18 Tras cerrar sesión, reportes vuelve a 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "ventas"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "platoId",
+      "value": ""
+    },
+    {
+      "key": "platoNombre",
+      "value": ""
+    }
+  ]
+}
