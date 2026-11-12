@@ -52,6 +52,15 @@ public class Pedido
     public decimal Descuento { get; set; }
     public decimal Propina { get; set; }
     public decimal TotalAPagar => Total - Descuento + Propina;
+    public DateTime? InicioPreparacion { get; set; }
+    public DateTime? ListoEn { get; set; }
+}
+
+/// <summary>Pedido con sus ítems, tal como lo ve la cocina.</summary>
+public class ComandaCocina
+{
+    public Pedido Pedido { get; set; } = new();
+    public List<DetallePedido> Items { get; set; } = new();
 }
 
 public class DetallePedido
