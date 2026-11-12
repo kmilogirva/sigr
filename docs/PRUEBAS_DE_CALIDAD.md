@@ -57,7 +57,7 @@ Detalle de casos y marcas (`humo`, `seguridad`) en [`tests/README.md`](../tests/
 | Playwright (16 casos) | **16 pasan, 0 fallan** | Incluye el flujo del carrito (carrito → mesa → pedido → cancelación). Duración: 28 s |
 | Newman (18 peticiones) | **40 aserciones, 0 fallos** | Promedio ~42 ms por petición |
 | k6 (carga hasta 20 usuarios, 52 s) | **0 % de errores, 100 % de verificaciones** | 600 iteraciones, 2.421 peticiones. p95 lecturas: **4,6 ms** · p95 login: **87 ms** |
-| ZAP baseline | **0 fallos, 11 advertencias, 57 reglas superadas** | Advertencias H-05, H-06 y H-07 |
+| ZAP baseline | **0 fallos, 11 advertencias, 57 reglas superadas** | El informe clasifica las alertas en 0 altas, 5 medias, 6 bajas y 7 informativas. Corresponden a H-05, H-06 y H-07 |
 
 Antes de la fase 1, los resultados en Windows (contra la app local) coincidían con los de Linux: Selenium 23/2 y Newman 18/40/0.
 
@@ -94,6 +94,18 @@ Mismo sistema, mismo contenedor Linux y mismo Chromium. Tiempos medidos por caso
 - Usuarios ficticios (clave `Sigr2026!`): `admin@sigr.test`, `carlos.mesero@sigr.test`, `maria.lopez@correo.test`, `cocina@sigr.test`.
 - Los tests de registro crean usuarios con correo `qa.*`; en Windows se eliminan al terminar (con `sqlcmd`), en Docker la base es efímera.
 - Cupones de demostración: `BIENVENIDA10` (vigente), `PROMO5000` (vigente), `NAVIDAD2025` (vencido), `UNICO` (agotado).
+
+## Figuras del informe
+La evidencia visual se genera con un script reproducible, a partir de las ejecuciones reales:
+```bash
+python tests/herramientas/generar_figuras.py        # -> tests/evidencia/figuras/
+```
+| Figura | Archivo | Contenido |
+|---|---|---|
+| Consolas como imagen | `consola_selenium`, `consola_playwright`, `consola_newman`, `consola_k6`, `consola_zap` | Salida real de cada herramienta |
+| Gráficos | `grafico_resultados`, `grafico_selenium_vs_playwright`, `grafico_k6_latencia` | Resultados por herramienta, comparación de tiempos y latencia de k6 |
+| Informe ZAP | `captura_zap_informe` | Resumen de alertas por nivel de riesgo |
+| Capturas de pasos | `sel_01` a `sel_06`, `pw_01` a `pw_06` | Selenium (login por rol, error, acceso denegado, validación del servidor, pedido vacío) y Playwright (flujo completo del carrito) |
 
 ## Limitaciones
 - No hay aún pruebas unitarias ni de integración, ni cobertura medida.
