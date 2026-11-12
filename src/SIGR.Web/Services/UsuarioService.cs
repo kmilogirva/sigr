@@ -5,9 +5,14 @@ using SIGR.Web.Models;
 
 namespace SIGR.Web.Services;
 
-public class UsuarioService(DbConnectionFactory db)
+public class UsuarioService(DbConnectionFactory db, IConfiguration config, IHostEnvironment env)
 {
+    private const string ClaveDemo = "Sigr2026!";
+    private const string PrefijoHashFicticio = "HASH_FICTICIO";
     private readonly PasswordHasher<Usuario> _hasher = new();
+
+    /// <summary>Modo demostración/QA: Development o Demo:SembrarPasswords=true. Nunca debe estar activo en producción.</summary>
+    private bool ModoDemo => env.IsDevelopment() || config.GetValue<bool>("Demo:SembrarPasswords");
 
     private const string SelectUsuario = """
         SELECT u.UsuarioId, u.RolId, r.Nombre AS Rol, u.NombreCompleto, u.Email,
@@ -21,7 +26,19 @@ public class UsuarioService(DbConnectionFactory db)
         var u = await cn.QuerySingleOrDefaultAsync<Usuario>(
             SelectUsuario + " WHERE u.Email = @email AND u.Activo = 1", new { email });
         if (u is null) return null;
-        var r = _hasher.VerifyHashedPassword(u, u.PasswordHash, password);
+
+        // En modo demo la base puede haberse recreado con hashes ficticios: se reparan al vuelo.
+        if (ModoDemo && u.PasswordHash.StartsWith(PrefijoHashFicticio, StringComparison.Ordinal))
+        {
+            await SembrarPasswordsDemoAsync(ClaveDemo);
+            u = await cn.QuerySingleOrDefaultAsync<Usuario>(SelectUsuario + " WHERE u.Email = @email AND u.Activo = 1", new { email });
+            if (u is null) return null;
+        }
+
+        // Un hash malformado en la base no debe provocar un error 500: simplemente no se autentica.
+        PasswordVerificationResult r;
+        try { r = _hasher.VerifyHashedPassword(u, u.PasswordHash, password); }
+        catch (FormatException) { return null; }
         return r == PasswordVerificationResult.Failed ? null : u;
     }
 

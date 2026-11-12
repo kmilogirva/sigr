@@ -1,0 +1,130 @@
+# SIGR — entorno completo en contenedores Linux.
+#
+#   Levantar el sistema:      docker compose up -d --build
+#   Pruebas funcionales (UI): docker compose --profile tests run --rm selenium-tests
+#   Pruebas de API:           docker compose --profile tests run --rm newman
+#   Escaneo de seguridad:     docker compose --profile security run --rm zap
+#   Pruebas de rendimiento:   docker compose --profile performance run --rm k6
+#   Apagar y borrar datos:    docker compose down -v
+#
+# Más detalles en docs/DOCKER.md. Solo para desarrollo y QA.
+name: sigr
+
+services:
+  # ---------- Base de datos: SQL Server para Linux ----------
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-Sigr#Qa2026!}
+    ports:
+      - "127.0.0.1:${SQL_PORT:-14330}:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 15s
+
+  # ---------- Carga de esquema y datos ficticios (corre una vez y termina) ----------
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-Sigr#Qa2026!}
+    volumes:
+      - ./database:/scripts:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        for f in 01_schema 02_seed 03_inventario 04_pagos_avanzados 05_cocina; do
+          echo ">> Ejecutando $$f.sql"
+          /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -I -f 65001 -i /scripts/$$f.sql
+        done
+        echo ">> Base de datos lista"
+    restart: "no"
+
+  # ---------- Aplicación SIGR ----------
+  web:
+    build: .
+    image: sigr-web:local
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__SIGR: "Server=db;Database=SIGR;User Id=sa;Password=${SA_PASSWORD:-Sigr#Qa2026!};Encrypt=True;TrustServerCertificate=True"
+      # Hashea la clave de demostración de los usuarios ficticios (solo QA; ver docs/DOCKER.md)
+      Demo__SembrarPasswords: "true"
+    restart: on-failure:3
+    ports:
+      - "${SIGR_PORT:-8080}:8080"
+    volumes:
+      - dpkeys:/home/app/.aspnet/DataProtection-Keys
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3; head -n1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # ---------- Pruebas funcionales de interfaz (Selenium + pytest + Chromium) ----------
+  selenium-tests:
+    profiles: ["tests"]
+    build: ./tests/selenium
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      SIGR_BASE_URL: http://web:8080
+      SIGR_HEADLESS: "1"
+    volumes:
+      - ./tests/evidencia:/tests/evidencia
+
+  # ---------- Pruebas de API (Postman / Newman) ----------
+  newman:
+    profiles: ["tests"]
+    image: postman/newman:alpine
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./tests/postman:/etc/newman:ro
+      - ./tests/evidencia/postman:/out
+    command: >
+      run SIGR_API.postman_collection.json
+      -e SIGR_local.postman_environment.json
+      --env-var baseUrl=http://web:8080
+      -r cli,json --reporter-json-export /out/resultado.json --color off
+
+  # ---------- Seguridad: OWASP ZAP (escaneo base pasivo) ----------
+  zap:
+    profiles: ["security"]
+    image: ghcr.io/zaproxy/zaproxy:stable
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./tests/evidencia/zap:/zap/wrk:rw
+    command: zap-baseline.py -t http://web:8080 -r informe_zap.html -I
+
+  # ---------- Rendimiento: k6 ----------
+  k6:
+    profiles: ["performance"]
+    image: grafana/k6:latest
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://web:8080
+    volumes:
+      - ./tests/k6:/scripts:ro
+      - ./tests/evidencia/k6:/out
+    command: run /scripts/carga.js --summary-export=/out/resumen.json
+
+volumes:
+  dpkeys:
