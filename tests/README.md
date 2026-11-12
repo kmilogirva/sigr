@@ -4,11 +4,19 @@ Suite de pruebas funcionales que audita el sistema desde afuera, como lo haría 
 
 | Carpeta | Herramienta | Qué prueba |
 |---|---|---|
+| `SIGR.Tests/` | xUnit + NSubstitute + FluentAssertions + Bogus + Coverlet | Unitarias: validaciones, cálculo de pagos, reglas de usuarios, inventario y pedidos (102 pruebas, sin base de datos) |
 | `selenium/` | Python + pytest + Selenium (patrón Page Object) | Formularios web: login, registro y control de acceso por rol |
 | `playwright/` | Python + Playwright + pytest | E2E: login por 4 roles, control de acceso y flujo completo del carrito de pedido |
 | `postman/` | Postman + Newman | API REST: menú público, autenticación, autorización y reportes |
 | `k6/` | k6 | Rendimiento: humo y carga sobre lecturas, login y reportes |
 | `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML/JSON y salida de consola |
+
+## Pruebas unitarias
+```bash
+dotnet test tests/SIGR.Tests/SIGR.Tests.csproj                                    # ~1 s, sin base de datos
+dotnet test tests/SIGR.Tests/SIGR.Tests.csproj --collect:"XPlat Code Coverage"    # con cobertura
+```
+Ver detalle y cobertura en [`docs/PRUEBAS_DE_CALIDAD.md`](../docs/PRUEBAS_DE_CALIDAD.md).
 
 ## Ejecución en contenedores Linux (recomendada)
 Levanta el sistema con una base limpia y ejecuta cada tipo de prueba sin instalar nada. Detalle en [`docs/DOCKER.md`](../docs/DOCKER.md).

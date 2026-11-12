@@ -21,10 +21,11 @@ Se aplica la **pirámide de pruebas**: muchas pruebas rápidas y baratas en la b
 | API REST | Postman + Newman | Menú público, login/logout, autorización 401/403, reportes y valores límite | `tests/postman/` | ✅ Hecho |
 | Rendimiento | k6 | Humo (1 usuario) y carga (20 usuarios) sobre lecturas, login y reportes | `tests/k6/carga.js` | ✅ Hecho |
 | Seguridad | OWASP ZAP (baseline pasivo) | Cabeceras, cookies, recursos externos, reflexión | contenedor `zap` | ✅ Hecho (correcciones pendientes) |
-| Unitarias | xUnit, NSubstitute, FluentAssertions | `PagoService` (descuento, propina, cupón), `Validaciones`, flujo de estados | — | ⏳ Pendiente |
+| Unitarias | xUnit, NSubstitute, FluentAssertions, Bogus | `Validaciones`, `PagoService` (descuento, propina, vigencia de cupones y sus validaciones), `UsuarioService` (registro y reglas de protección), `InventarioService`, `PedidoService` y la identidad de la API | `tests/SIGR.Tests/` | ✅ Hecho (102 pruebas) |
 | Integración | WebApplicationFactory, Testcontainers | Servicios y API contra una base limpia | — | ⏳ Pendiente |
 | E2E moderno | Playwright (Python) | Login, control de acceso por 4 roles y flujo completo del carrito de pedido del cliente | `tests/playwright/` | ✅ Hecho |
-| Cobertura y mutación | Coverlet, ReportGenerator, Stryker.NET | Calidad de las pruebas | — | ⏳ Pendiente |
+| Cobertura | Coverlet | Líneas cubiertas por las pruebas unitarias | `tests/SIGR.Tests/` | ✅ Medida (global 9,4 %) |
+| Mutación | Stryker.NET | ¿Las pruebas detectan cambios en el código? | — | ⏳ Pendiente (se hizo una prueba de regresión manual, ver abajo) |
 | Accesibilidad | axe-core / Lighthouse | Contraste, etiquetas, teclado | — | ⏳ Pendiente |
 | Integración continua | GitHub Actions | Ejecutar todo en cada Pull Request | — | ⏳ Pendiente |
 
@@ -42,6 +43,12 @@ docker compose down -v
 ```
 Cada `run` recrea la base de datos (comportamiento intencional: partir de datos limpios).
 
+### Pruebas unitarias (no necesitan base de datos ni la app)
+```bash
+dotnet test tests/SIGR.Tests/SIGR.Tests.csproj                                   # 102 pruebas en ~1 s
+dotnet test tests/SIGR.Tests/SIGR.Tests.csproj --collect:"XPlat Code Coverage"   # con cobertura
+```
+
 ### En Windows, contra la app local
 ```bash
 cd src/SIGR.Web && dotnet run --launch-profile https          # https://localhost:7072
@@ -54,6 +61,7 @@ Detalle de casos y marcas (`humo`, `seguridad`) en [`tests/README.md`](../tests/
 | Prueba | Resultado | Detalle |
 |---|---|---|
 | Selenium (26 casos) | **26 pasan, 0 fallan** | Tras corregir H-01, H-02 y H-03 (antes: 23 pasan y 2 fallan, de 25 casos). Duración: 56 s |
+| xUnit (102 pruebas unitarias) | **102 pasan, 0 fallan** | Duración: ~1 s. Cobertura global 9,4 % (ver abajo) |
 | Playwright (16 casos) | **16 pasan, 0 fallan** | Incluye el flujo del carrito (carrito → mesa → pedido → cancelación). Duración: 28 s |
 | Newman (18 peticiones) | **40 aserciones, 0 fallos** | Promedio ~42 ms por petición |
 | k6 (carga hasta 20 usuarios, 52 s) | **0 % de errores, 100 % de verificaciones** | 600 iteraciones, 2.421 peticiones. p95 lecturas: **4,6 ms** · p95 login: **87 ms** |
@@ -68,6 +76,31 @@ Antes de la fase 1, los resultados en Windows (contra la app local) coincidían 
 | Verificaciones (`checks`) | > 99 % | 100 % ✅ |
 | p95 de lecturas públicas | < 500 ms | 4,6 ms ✅ |
 | p95 de login | < 1.500 ms | 87 ms ✅ |
+
+## Pruebas unitarias y cobertura
+Las pruebas ejercitan los servicios **reales** con dependencias falsas: las validaciones del servidor ocurren *antes* de abrir cualquier conexión, así que no se necesita SQL Server. `NSubstitute` simula el entorno de ejecución (`IHostEnvironment`), `Bogus` genera datos aleatorios y `FluentAssertions` expresa las aserciones.
+
+| Clase de pruebas | Pruebas | Qué verifica |
+|---|---|---|
+| `ValidacionesTests` | 27 | Correo, nombre y clave: casos válidos, inválidos y límites (120 caracteres, 100, 6) |
+| `PagoServiceTests` | 38 | Descuento (porcentaje, monto, tope), propina, vigencia inclusiva de cupones, límite de usos y validaciones al guardar |
+| `UsuarioServiceTests` | 16 | Registro público (H-01, H-02), alta de personal, un administrador no cambia su rol ni se desactiva |
+| `InventarioPedidosTests` | 21 | Insumos y movimientos manuales, alerta de stock bajo, costo de receta, pedidos y total a pagar |
+
+**Regresión demostrada:** al ejecutar estas mismas pruebas contra la versión del código *anterior* a la corrección (commit `29db872`), **6 de las 16 pruebas de usuarios fallan** (las de H-01, H-02 y el teléfono). Al restaurar la corrección, las 102 pasan. Es la prueba de que detectan los defectos que dicen cubrir.
+
+### Cobertura (Coverlet)
+| Capa o clase | Líneas cubiertas |
+|---|---|
+| **Global** | **9,4 %** (ramas 11,8 %) |
+| `Validaciones` | 100 % |
+| `PagoService` | 26 % |
+| `UsuarioService` | 18 % |
+| `InventarioService` | 11 % |
+| `PedidoService` | 4 % |
+| Páginas Razor (`Components`) | 0 % |
+
+**Interpretación:** la cobertura global es baja a propósito de la estrategia, no por descuido. Cerca del 70 % del código son páginas Razor y consultas SQL, que no se prueban de forma unitaria: se cubren con pruebas de integración (fase 4) y E2E (Selenium y Playwright). Las unitarias cubren la lógica pura y las validaciones, donde un error es más barato de encontrar.
 
 ## Comparación Selenium vs Playwright
 Mismo sistema, mismo contenedor Linux y mismo Chromium. Tiempos medidos por caso (promedio, en segundos):
