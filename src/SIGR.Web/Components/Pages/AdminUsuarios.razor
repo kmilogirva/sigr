@@ -1,0 +1,106 @@
+@page "/admin/usuarios"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Administrador")]
+@inject UsuarioService Usuarios
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Usuarios</PageTitle>
+<div class="mb-3">
+    <h1 class="h2 fw-bold mb-0">Usuarios</h1>
+    <p class="text-muted mb-0">Alta de personal, cambio de rol, desactivación y restablecimiento de contraseña.</p>
+</div>
+
+@if (!string.IsNullOrEmpty(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="row g-2 mb-3">
+            <div class="col-md-5"><input class="form-control form-control-sm" placeholder="Buscar por nombre o correo" @bind="busqueda" @bind:event="oninput" @bind:after="Cargar" /></div>
+            <div class="col-md-4"><select class="form-select form-select-sm" @bind="filtroRol" @bind:after="Cargar">
+                <option value="">Todos los roles</option>
+                @foreach (var r in roles) { <option>@r</option> }</select></div>
+        </div>
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+            @foreach (var u in lista)
+            {
+                var uid = u.UsuarioId; var esYo = uid == yoId;
+                <tr class="@(u.Activo ? "" : "text-muted")">
+                    <td>@u.NombreCompleto @if (esYo) { <span class="badge bg-info text-dark">tú</span> }<div class="small text-muted">@u.Email</div></td>
+                    <td>
+                        <select class="form-select form-select-sm" value="@u.Rol" disabled="@esYo" @onchange="e => CambiarRol(uid, e.Value?.ToString() ?? u.Rol)">
+                            @foreach (var r in roles) { <option selected="@(r == u.Rol)">@r</option> }
+                        </select>
+                    </td>
+                    <td><span class="badge @(u.Activo ? "bg-success" : "bg-secondary")">@(u.Activo ? "Activo" : "Inactivo")</span></td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => claveDe = uid">Clave</button>
+                        <button class="btn btn-outline-@(u.Activo ? "danger" : "success") btn-sm" disabled="@(esYo && u.Activo)" @onclick="() => Alternar(uid, !u.Activo)">@(u.Activo ? "Desactivar" : "Activar")</button>
+                    </td>
+                </tr>
+                @if (claveDe == uid)
+                {
+                    <tr><td colspan="4" class="bg-light">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" placeholder="Nueva contraseña (mín. @Validaciones.ClaveMinima)" @bind="nuevaClave" />
+                            <button class="btn btn-primary" @onclick="() => Restablecer(uid)">Guardar</button>
+                            <button class="btn btn-outline-secondary" @onclick="() => claveDe = 0">Cancelar</button>
+                        </div>
+                    </td></tr>
+                }
+            }
+            @if (!lista.Any()) { <tr><td colspan="4" class="text-center text-muted">Sin resultados.</td></tr> }
+        </table>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm"><div class="card-body">
+            <h2 class="h6 fw-bold">Nuevo usuario</h2>
+            <input class="form-control form-control-sm mb-2" maxlength="100" placeholder="Nombre completo" @bind="nombre" />
+            <input class="form-control form-control-sm mb-2" maxlength="120" placeholder="Correo" @bind="email" />
+            <input class="form-control form-control-sm mb-2" maxlength="20" placeholder="Teléfono (opcional)" @bind="telefono" />
+            <select class="form-select form-select-sm mb-2" @bind="rolNuevo">@foreach (var r in roles) { <option>@r</option> }</select>
+            <input type="text" class="form-control form-control-sm mb-2" placeholder="Contraseña temporal (mín. @Validaciones.ClaveMinima)" @bind="clave" />
+            <button class="btn btn-primary btn-sm" @onclick="Crear">Crear usuario</button>
+        </div></div>
+    </div>
+</div>
+
+@code {
+    List<Usuario> lista = new();
+    List<string> roles = new();
+    string busqueda = "", filtroRol = "", nombre = "", email = "", telefono = "", rolNuevo = "Mesero", clave = "", nuevaClave = "";
+    string? mensaje;
+    bool esError;
+    int yoId, claveDe;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        yoId = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        roles = await Usuarios.RolesAsync();
+        if (!roles.Contains(rolNuevo)) rolNuevo = roles.FirstOrDefault() ?? "";
+        await Cargar();
+    }
+
+    async Task Cargar() =>
+        lista = await Usuarios.ListarAsync(string.IsNullOrEmpty(filtroRol) ? null : filtroRol, string.IsNullOrWhiteSpace(busqueda) ? null : busqueda.Trim());
+
+    async Task Ejecutar(Func<Task> accion, string ok)
+    {
+        mensaje = null;
+        try { await accion(); mensaje = ok; esError = false; }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { mensaje = ex.Message; esError = true; }
+        await Cargar();
+    }
+
+    Task Crear() => Ejecutar(async () =>
+    {
+        await Usuarios.CrearAsync(nombre, email, telefono, rolNuevo, clave);
+        nombre = email = telefono = clave = "";
+    }, "Usuario creado.");
+
+    Task CambiarRol(int id, string rol) => Ejecutar(() => Usuarios.CambiarRolAsync(id, rol, yoId), "Rol actualizado.");
+    Task Alternar(int id, bool activo) => Ejecutar(() => Usuarios.CambiarActivoAsync(id, activo, yoId), activo ? "Usuario activado." : "Usuario desactivado.");
+    Task Restablecer(int id) => Ejecutar(async () => { await Usuarios.RestablecerClaveAsync(id, nuevaClave); nuevaClave = ""; claveDe = 0; }, "Contraseña restablecida.");
+}
