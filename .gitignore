@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 # Evidencia generada por las pruebas automatizadas
 tests/evidencia/
 .pytest_cache/
+
+# Entregables académicos locales (no se versionan)
+docs/*.pdf

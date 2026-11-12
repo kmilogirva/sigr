@@ -5,10 +5,25 @@ Suite de pruebas funcionales que audita el sistema desde afuera, como lo haría 
 | Carpeta | Herramienta | Qué prueba |
 |---|---|---|
 | `selenium/` | Python + pytest + Selenium (patrón Page Object) | Formularios web: login, registro y control de acceso por rol |
+| `playwright/` | Python + Playwright + pytest | E2E: login por 4 roles, control de acceso y flujo completo del carrito de pedido |
 | `postman/` | Postman + Newman | API REST: menú público, autenticación, autorización y reportes |
-| `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML y salida de consola |
+| `k6/` | k6 | Rendimiento: humo y carga sobre lecturas, login y reportes |
+| `evidencia/` | (generada, no se versiona) | Capturas, reportes HTML/XML/JSON y salida de consola |
 
-## Requisitos
+## Ejecución en contenedores Linux (recomendada)
+Levanta el sistema con una base limpia y ejecuta cada tipo de prueba sin instalar nada. Detalle en [`docs/DOCKER.md`](../docs/DOCKER.md).
+```bash
+docker compose up -d --build
+docker compose --profile tests run --rm selenium-tests     # interfaz
+docker compose --profile tests run --rm playwright-tests   # E2E Playwright
+docker compose --profile tests run --rm newman             # API
+docker compose --profile security run --rm zap             # seguridad (OWASP ZAP)
+docker compose --profile performance run --rm k6           # rendimiento
+```
+Resultados vigentes, hallazgos y estrategia: [`docs/PRUEBAS_DE_CALIDAD.md`](../docs/PRUEBAS_DE_CALIDAD.md) y [`docs/HALLAZGOS.md`](../docs/HALLAZGOS.md).
+
+## Ejecución local en Windows
+### Requisitos
 - App en ejecución: `cd src/SIGR.Web && dotnet run --launch-profile https` (https://localhost:7072) con la base `SIGR` y datos ficticios.
 - Python 3.10+ y Chrome. `pip install -r tests/selenium/requirements.txt`
 - Node.js (solo para Newman): se usa con `npx newman`, sin instalación global.
@@ -44,16 +59,12 @@ Los tests de registro crean usuarios con correo `qa.*`; al terminar la sesión s
 | S-01 | Inyección SQL en el login (3 cargas) | Rechazo sin autenticar |
 | S-02 | Rutas protegidas sin sesión (5 rutas) | Redirección a `/login` conservando `ReturnUrl` |
 | S-03 | Cliente abre pantalla de Administrador | Acceso denegado |
-| S-04 | Correo sin formato válido saltando el navegador | El servidor debe rechazarlo |
-| S-05 | Nombre vacío o solo espacios saltando el navegador | El servidor debe rechazarlo |
+| S-04 | Correo sin formato válido saltando el navegador | El servidor lo rechaza con mensaje (H-01) |
+| S-05 | Nombre vacío o solo espacios saltando el navegador | El servidor lo rechaza con mensaje (H-02) |
+| S-06 | Avanzar un pedido sin ítems | Se rechaza: «el pedido no tiene ítems» (H-03) |
 
 ## Diseño de casos (API)
 18 peticiones y 40 aserciones en `postman/`: menú público (API-01 a 05, con variables encadenadas), login y logout (API-06 a 09, 11, 17), autorización 401/403 (API-06, 10, 18), reportes y valores límite (API-12 a 16).
 
 ## Hallazgos de la auditoría
-| ID | Severidad | Hallazgo | Evidencia |
-|---|---|---|---|
-| H-01 | Media | El servidor acepta un registro con correo sin formato válido: la validación existe solo en el navegador (`type=email`) | `test_s04_*` falla |
-| H-02 | Media | El servidor acepta un registro con nombre vacío o de solo espacios: solo existe `required` en el navegador | `test_s05_*` falla |
-
-Los dos tests que fallan son **intencionales**: documentan defectos reales de `POST /account/register` y deben pasar a verde cuando se agregue validación en el servidor.
+Registro completo en [`docs/HALLAZGOS.md`](../docs/HALLAZGOS.md). H-01, H-02 y H-03 se detectaron con estas pruebas y se corrigieron en `fix/validacion-registro`: los tests S-04, S-05 y S-06 pasaron de rojo a verde (Selenium: 26 de 26).

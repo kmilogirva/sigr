@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Data.SqlClient;
 using SIGR.Web.Data;
 using SIGR.Web.Models;
 
@@ -7,12 +8,13 @@ namespace SIGR.Web.Services;
 public class PedidoService(DbConnectionFactory db)
 {
     private record PedidoInfo(int MesaId, string Estado, decimal Total);
+    private record LineaDetalle(int PlatoId, int Cantidad);
 
     public static readonly string[] FlujoEstados = ["Pendiente", "EnPreparacion", "Listo", "Entregado"];
 
     private const string SelectPedido = """
         SELECT p.PedidoId, p.MesaId, m.Numero AS NumeroMesa, u.NombreCompleto AS Mesero,
-               p.FechaHora, p.Estado, p.Total
+               p.FechaHora, p.Estado, p.Total, p.Descuento, p.Propina, p.InicioPreparacion, p.ListoEn
         FROM dbo.Pedidos p
         JOIN dbo.Mesas m ON m.MesaId = p.MesaId
         JOIN dbo.Usuarios u ON u.UsuarioId = p.MeseroId
@@ -91,6 +93,7 @@ public class PedidoService(DbConnectionFactory db)
             await cn.ExecuteAsync(
                 "INSERT dbo.DetallePedido (PedidoId,PlatoId,Cantidad,PrecioUnitario,Nota) VALUES (@id,@PlatoId,@Cantidad,@precio,@Nota)",
                 new { id, it.PlatoId, it.Cantidad, precio, it.Nota }, tx);
+            await InventarioService.ConsumirAsync(cn, tx, id, it.PlatoId, it.Cantidad);
         }
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @id", new { id }, tx);
         await cn.ExecuteAsync("UPDATE dbo.Mesas SET Estado='Ocupada' WHERE MesaId=@mesaId", new { mesaId }, tx);
@@ -133,6 +136,7 @@ public class PedidoService(DbConnectionFactory db)
             ?? throw new InvalidOperationException("El plato no está disponible.");
         await cn.ExecuteAsync("INSERT dbo.DetallePedido (PedidoId,PlatoId,Cantidad,PrecioUnitario,Nota) VALUES (@pedidoId,@platoId,@cantidad,@precio,@nota)",
             new { pedidoId, platoId, cantidad, precio, nota }, tx);
+        await InventarioService.ConsumirAsync(cn, tx, pedidoId, platoId, cantidad);
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @pedidoId", new { pedidoId }, tx);
         tx.Commit();
     }
@@ -144,7 +148,10 @@ public class PedidoService(DbConnectionFactory db)
         using var tx = cn.BeginTransaction();
         var estado = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId }, tx);
         if (estado is not ("Pendiente" or "EnPreparacion")) throw new InvalidOperationException("El pedido ya no admite cambios.");
+        var linea = await cn.QuerySingleOrDefaultAsync<LineaDetalle>(
+            "SELECT PlatoId, Cantidad FROM dbo.DetallePedido WHERE DetalleId=@detalleId AND PedidoId=@pedidoId", new { detalleId, pedidoId }, tx);
         await cn.ExecuteAsync("DELETE dbo.DetallePedido WHERE DetalleId=@detalleId AND PedidoId=@pedidoId", new { detalleId, pedidoId }, tx);
+        if (linea is not null) await InventarioService.DevolverAsync(cn, tx, pedidoId, linea.PlatoId, linea.Cantidad);
         await cn.ExecuteAsync("EXEC dbo.sp_RecalcularTotalPedido @pedidoId", new { pedidoId }, tx);
         tx.Commit();
     }
@@ -156,7 +163,67 @@ public class PedidoService(DbConnectionFactory db)
         var estado = await cn.ExecuteScalarAsync<string?>("SELECT Estado FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId });
         var i = Array.IndexOf(FlujoEstados, estado);
         if (i < 0 || i >= FlujoEstados.Length - 1) return;
-        await cn.ExecuteAsync("UPDATE dbo.Pedidos SET Estado=@e WHERE PedidoId=@pedidoId", new { e = FlujoEstados[i + 1], pedidoId });
+        if (estado == "Pendiente") await ExigirItemsAsync(cn, pedidoId);   // H-03
+        await cn.ExecuteAsync("""
+            UPDATE dbo.Pedidos SET Estado=@e,
+                InicioPreparacion = CASE WHEN @e='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,
+                ListoEn           = CASE WHEN @e='Listo'         THEN SYSDATETIME() ELSE ListoEn END
+            WHERE PedidoId=@pedidoId
+            """, new { e = FlujoEstados[i + 1], pedidoId });
+    }
+
+    // ---------------- Cocina ----------------
+    /// <summary>Comandas que la cocina debe atender o que están listas para entregar.</summary>
+    public async Task<List<ComandaCocina>> ComandasAsync()
+    {
+        using var cn = db.Create();
+        var pedidos = (await cn.QueryAsync<Pedido>(SelectPedido + " WHERE p.Estado IN ('Pendiente','EnPreparacion','Listo') ORDER BY p.FechaHora")).ToList();
+        if (pedidos.Count == 0) return new();
+        var ids = pedidos.Select(p => p.PedidoId).ToArray();
+        var items = (await cn.QueryAsync<DetallePedido>("""
+            SELECT d.DetalleId, d.PedidoId, d.PlatoId, pl.Nombre AS Plato, d.Cantidad, d.PrecioUnitario, d.Subtotal, d.Nota
+            FROM dbo.DetallePedido d JOIN dbo.Platos pl ON pl.PlatoId = d.PlatoId
+            WHERE d.PedidoId IN @ids ORDER BY d.DetalleId
+            """, new { ids })).ToLookup(d => d.PedidoId);
+        return pedidos.Select(p => new ComandaCocina { Pedido = p, Items = items[p.PedidoId].ToList() }).ToList();
+    }
+
+    /// <summary>Un pedido vacío no puede salir de «Pendiente» (hallazgo H-03).</summary>
+    private static async Task ExigirItemsAsync(SqlConnection cn, int pedidoId)
+    {
+        var items = await cn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DetallePedido WHERE PedidoId=@pedidoId", new { pedidoId });
+        if (items == 0) throw new InvalidOperationException("El pedido no tiene ítems: agrega al menos un plato antes de avanzarlo.");
+    }
+
+    /// <summary>La cocina solo mueve Pendiente → EnPreparacion y EnPreparacion → Listo.</summary>
+    public async Task CocinaAvanzarAsync(int pedidoId, string desde)
+    {
+        var hacia = desde switch
+        {
+            "Pendiente" => "EnPreparacion",
+            "EnPreparacion" => "Listo",
+            _ => throw new ArgumentException("Transición no permitida para la cocina.")
+        };
+        using var cn = db.Create();
+        if (desde == "Pendiente") await ExigirItemsAsync(cn, pedidoId);   // H-03
+        var n = await cn.ExecuteAsync("""
+            UPDATE dbo.Pedidos SET Estado=@hacia,
+                InicioPreparacion = CASE WHEN @hacia='EnPreparacion' THEN SYSDATETIME() ELSE InicioPreparacion END,
+                ListoEn           = CASE WHEN @hacia='Listo'         THEN SYSDATETIME() ELSE ListoEn END
+            WHERE PedidoId=@pedidoId AND Estado=@desde
+            """, new { pedidoId, desde, hacia });
+        if (n == 0) throw new InvalidOperationException("El pedido ya cambió de estado.");
+    }
+
+    /// <summary>Minutos promedio entre inicio de preparación y listo, de los pedidos de hoy.</summary>
+    public async Task<double?> PromedioPreparacionHoyAsync()
+    {
+        using var cn = db.Create();
+        return await cn.ExecuteScalarAsync<double?>("""
+            SELECT AVG(CAST(DATEDIFF(SECOND, InicioPreparacion, ListoEn) AS FLOAT)) / 60.0
+            FROM dbo.Pedidos
+            WHERE ListoEn IS NOT NULL AND InicioPreparacion IS NOT NULL AND CAST(ListoEn AS DATE) = CAST(SYSDATETIME() AS DATE)
+            """);
     }
 
     public Task CancelarAsync(int pedidoId) => CerrarAsync(pedidoId, null);
@@ -173,6 +240,7 @@ public class PedidoService(DbConnectionFactory db)
             "SELECT MesaId, Estado, Total FROM dbo.Pedidos WHERE PedidoId=@pedidoId", new { pedidoId }, tx)
             ?? throw new InvalidOperationException("Pedido no encontrado.");
         if (p.Estado is "Pagado" or "Cancelado") throw new InvalidOperationException("El pedido ya está cerrado.");
+        if (metodo is null) await InventarioService.DevolverPedidoAsync(cn, tx, pedidoId);
         if (metodo is not null)
         {
             if (p.Estado != "Entregado") throw new InvalidOperationException("Solo se puede cobrar un pedido entregado.");

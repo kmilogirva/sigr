@@ -1,6 +1,18 @@
 # Changelog
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado semántico.
 
+## [Sin publicar]
+### Añadido
+- Rediseño visual (Bootstrap Icons, hero, sidebar con íconos) y pantalla de acceso sin barra lateral. — `feat(ui)`
+- Pedido autogestionado por el cliente: carrito, selección de mesa libre y seguimiento en «Mis pedidos». — `feat(ui)`
+- Inventario: insumos, recetas, kardex y descuento automático por pedido (`database/03_inventario.sql`). — rama `feature/inventario`
+- Pagos avanzados: cupones, propina, cuenta dividida y recibo (`database/04_pagos_avanzados.sql`). — rama `feature/pagos-avanzados`
+- Gestión de usuarios con validación en el servidor. — rama `feature/gestion-usuarios`
+- Cocina: rol Cocinero y pantalla de comandas (`database/05_cocina.sql`). — rama `feature/cocina`
+
+### Cambiado
+- Las ventas diarias (`vw_VentasDiarias`) se calculan netas de descuento.
+
 ## [0.1.0-baseline] - 09/11/2026
 ### Añadido
 - Estructura inicial de la solución Blazor (`SIGR.sln`, `SIGR.Web`). — `chore`

@@ -1,0 +1,62 @@
+@page "/recibo/{Id:int}"
+@attribute [Authorize]
+@inject PedidoService Pedidos
+@inject PagoService PagoSvc
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Recibo #@Id</PageTitle>
+
+@if (pedido is null || pedido.Estado != "Pagado")
+{
+    <div class="alert alert-warning m-3">El recibo no está disponible: el pedido no existe, no es tuyo o aún no está pagado.</div>
+}
+else
+{
+    <div class="recibo mx-auto my-3 p-4 bg-white shadow-sm">
+        <div class="text-center mb-3">
+            <div class="fs-4 fw-bold"><i class="bi bi-cup-hot-fill text-warning"></i> SIGR Restaurante</div>
+            <div class="text-muted small">Recibo de pago · No válido como factura</div>
+        </div>
+        <div class="small mb-2">
+            <div>Pedido <strong>#@pedido.PedidoId</strong> · Mesa @pedido.NumeroMesa</div>
+            <div>@pedido.FechaHora.ToString("dd/MM/yyyy HH:mm") · Atendió: @pedido.Mesero</div>
+        </div>
+        <table class="table table-sm">
+            <thead><tr><th>Plato</th><th class="text-end">Cant.</th><th class="text-end">Valor</th></tr></thead>
+            @foreach (var d in detalle) { <tr><td>@d.Plato</td><td class="text-end">@d.Cantidad</td><td class="text-end">@d.Subtotal.ToString("N0")</td></tr> }
+        </table>
+        <div class="d-flex justify-content-between"><span>Subtotal</span><span>@pedido.Total.ToString("C0")</span></div>
+        @if (pedido.Descuento > 0) { <div class="d-flex justify-content-between"><span>Descuento @(cupon is null ? "" : $"({cupon})")</span><span>-@pedido.Descuento.ToString("C0")</span></div> }
+        @if (pedido.Propina > 0) { <div class="d-flex justify-content-between"><span>Propina</span><span>@pedido.Propina.ToString("C0")</span></div> }
+        <hr class="my-2" />
+        <div class="d-flex justify-content-between fs-5 fw-bold"><span>Total pagado</span><span>@pedido.TotalAPagar.ToString("C0")</span></div>
+        <div class="small text-muted mt-2">
+            @foreach (var p in pagos) { <div>@p.Metodo: @p.Monto.ToString("C0")</div> }
+        </div>
+        <p class="text-center mt-3 mb-0">¡Gracias por tu visita!</p>
+        <div class="text-center mt-3 no-print"><button class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir</button></div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    Pedido? pedido;
+    List<DetallePedido> detalle = new();
+    List<Pago> pagos = new();
+    string? cupon;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var u = (await Auth.GetAuthenticationStateAsync()).User;
+        var p = await Pedidos.ObtenerAsync(Id);
+        if (p is null) return;
+        // El personal ve cualquier recibo; un cliente solo los de sus propios pedidos.
+        var esPersonal = u.IsInRole("Mesero") || u.IsInRole("Administrador");
+        var uid = int.Parse(u.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        if (!esPersonal && !await Pedidos.EsDeClienteAsync(Id, uid)) return;
+        pedido = p;
+        detalle = await Pedidos.DetalleAsync(Id);
+        pagos = await PagoSvc.PagosDePedidoAsync(Id);
+        cupon = await PagoSvc.CodigoCuponDePedidoAsync(Id);
+    }
+}

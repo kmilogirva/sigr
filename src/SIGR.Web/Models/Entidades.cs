@@ -47,7 +47,20 @@ public class Pedido
     public string Mesero { get; set; } = "";
     public DateTime FechaHora { get; set; }
     public string Estado { get; set; } = "Pendiente";
+    /// <summary>Subtotal de los ítems.</summary>
     public decimal Total { get; set; }
+    public decimal Descuento { get; set; }
+    public decimal Propina { get; set; }
+    public decimal TotalAPagar => Total - Descuento + Propina;
+    public DateTime? InicioPreparacion { get; set; }
+    public DateTime? ListoEn { get; set; }
+}
+
+/// <summary>Pedido con sus ítems, tal como lo ve la cocina.</summary>
+public class ComandaCocina
+{
+    public Pedido Pedido { get; set; } = new();
+    public List<DetallePedido> Items { get; set; } = new();
 }
 
 public class DetallePedido
@@ -100,4 +113,63 @@ public class CierreCaja
     public decimal TotalEfectivo { get; set; }
     public decimal TotalTarjeta { get; set; }
     public string? Observaciones { get; set; }
+}
+
+public class Insumo
+{
+    public int InsumoId { get; set; }
+    public string Nombre { get; set; } = "";
+    public string Unidad { get; set; } = "kg";
+    public decimal StockActual { get; set; }
+    public decimal StockMinimo { get; set; }
+    public decimal CostoUnitario { get; set; }
+    public bool Activo { get; set; } = true;
+    public bool StockBajo => StockActual <= StockMinimo;
+}
+
+public class RecetaItem
+{
+    public int PlatoId { get; set; }
+    public int InsumoId { get; set; }
+    public string Insumo { get; set; } = "";
+    public string Unidad { get; set; } = "";
+    public decimal Cantidad { get; set; }
+    public decimal CostoUnitario { get; set; }
+    public decimal Costo => Cantidad * CostoUnitario;
+}
+
+public class MovimientoInventario
+{
+    public int MovimientoId { get; set; }
+    public int InsumoId { get; set; }
+    public string Insumo { get; set; } = "";
+    public string Unidad { get; set; } = "";
+    public string Tipo { get; set; } = "";
+    public decimal Cantidad { get; set; }
+    public DateTime FechaHora { get; set; }
+    public string? Usuario { get; set; }
+    public int? PedidoId { get; set; }
+    public string? Nota { get; set; }
+}
+
+public class Cupon
+{
+    public int CuponId { get; set; }
+    public string Codigo { get; set; } = "";
+    public string Tipo { get; set; } = "Porcentaje";
+    public decimal Valor { get; set; }
+    public DateTime VigenteDesde { get; set; } = DateTime.Today;
+    public DateTime VigenteHasta { get; set; } = DateTime.Today.AddMonths(1);
+    public int? UsosMaximos { get; set; }
+    public int UsosActuales { get; set; }
+    public bool Activo { get; set; } = true;
+}
+
+public class Pago
+{
+    public int PagoId { get; set; }
+    public int PedidoId { get; set; }
+    public string Metodo { get; set; } = "";
+    public decimal Monto { get; set; }
+    public DateTime FechaHora { get; set; }
 }

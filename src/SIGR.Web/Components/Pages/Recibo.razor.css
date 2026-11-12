@@ -1,0 +1,9 @@
+.recibo {
+    max-width: 420px;
+    border-radius: .5rem;
+}
+
+@media print {
+    .no-print { display: none !important; }
+    .recibo { box-shadow: none !important; max-width: 100%; }
+}

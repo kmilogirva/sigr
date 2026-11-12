@@ -21,8 +21,14 @@
         <AuthorizeView Roles="Mesero,Administrador">
             <div class="nav-item px-3"><NavLink class="nav-link" href="pedidos"><i class="bi bi-receipt"></i>Pedidos</NavLink></div>
         </AuthorizeView>
+        <AuthorizeView Roles="Cocinero,Administrador">
+            <div class="nav-item px-3"><NavLink class="nav-link" href="cocina"><i class="bi bi-fire"></i>Cocina</NavLink></div>
+        </AuthorizeView>
         <AuthorizeView Roles="Administrador">
             <div class="nav-item px-3"><NavLink class="nav-link" href="admin/menu"><i class="bi bi-gear"></i>Administrar menú</NavLink></div>
+            <div class="nav-item px-3"><NavLink class="nav-link" href="admin/inventario"><i class="bi bi-box-seam"></i>Inventario</NavLink></div>
+            <div class="nav-item px-3"><NavLink class="nav-link" href="admin/cupones"><i class="bi bi-ticket-perforated"></i>Cupones</NavLink></div>
+            <div class="nav-item px-3"><NavLink class="nav-link" href="admin/usuarios"><i class="bi bi-people"></i>Usuarios</NavLink></div>
             <div class="nav-item px-3"><NavLink class="nav-link" href="caja"><i class="bi bi-cash-stack"></i>Caja</NavLink></div>
             <div class="nav-item px-3"><NavLink class="nav-link" href="reportes"><i class="bi bi-bar-chart-line"></i>Reportes</NavLink></div>
         </AuthorizeView>

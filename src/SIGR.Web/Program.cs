@@ -38,21 +38,47 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<InventarioService>();
+builder.Services.AddScoped<PagoService>();
 builder.Services.AddScoped<ReservaService>();
 builder.Services.AddScoped<CajaService>();
 
 var app = builder.Build();
+
+// Cultura fija es-CO: moneda, números y fechas se ven igual en Windows, Linux y Docker
+// (un contenedor Linux usa la cultura invariante y mostraría «¤4,500» en lugar de «$ 4.500»).
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("es-CO")
+    .AddSupportedCultures("es-CO")
+    .AddSupportedUICultures("es-CO"));
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
-else
+
+// Contraseña de prueba para los usuarios ficticios: Sigr2026!
+// Solo en Development o cuando se activa explícitamente (entornos de QA, p. ej. Docker): Demo__SembrarPasswords=true
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Demo:SembrarPasswords"))
 {
-    // Contraseña de prueba para los usuarios ficticios: Sigr2026!
-    using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<UsuarioService>().SembrarPasswordsDemoAsync("Sigr2026!");
+    // Con reintentos: al arrancar junto a la base de datos (p. ej. en Docker) esta puede tardar unos segundos.
+    // Si no se logra, no se detiene la app: el login repara las claves de demostración al vuelo.
+    var log = app.Services.GetRequiredService<ILogger<Program>>();
+    for (var intento = 1; intento <= 5; intento++)
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<UsuarioService>().SembrarPasswordsDemoAsync("Sigr2026!");
+            break;
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning("No se pudo sembrar la clave de demostración (intento {Intento}/5): {Mensaje}", intento, ex.Message);
+            if (intento < 5) await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+    }
 }
 
 app.UseHttpsRedirection();
@@ -87,6 +113,13 @@ app.MapPost("/account/logout", async (HttpContext ctx) =>
 {
     await ctx.SignOutAsync();
     return Results.Redirect("/login");
+});
+
+// Comprobación de salud (usada por Docker): responde 200 si la base de datos contesta.
+app.MapGet("/health", async (DbConnectionFactory db) =>
+{
+    try { using var cn = db.Create(); await cn.OpenAsync(); return Results.Ok(new { estado = "ok" }); }
+    catch { return Results.Json(new { estado = "sin base de datos" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
 });
 
 app.MapSigrApi();
