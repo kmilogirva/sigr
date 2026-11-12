@@ -75,7 +75,8 @@ def test_s04_servidor_rechaza_correo_sin_formato_valido(driver, evidencia):
     reg.desactivar_validacion_html()
     reg.llenar("Prueba QA", f"qa.sin-arroba-{int(time.time() * 1000)}", "", "abc123").enviar()
     evidencia("respuesta_del_servidor")
-    assert "registrado=1" not in driver.current_url, "HALLAZGO: el servidor aceptó un correo sin formato"
+    assert "registrado=1" not in driver.current_url, "HALLAZGO H-01: el servidor aceptó un correo sin formato"
+    assert "formato válido" in reg.mensaje_error()
 
 
 @pytest.mark.seguridad
@@ -85,4 +86,5 @@ def test_s05_servidor_rechaza_nombre_vacio_o_solo_espacios(driver, evidencia):
     reg.desactivar_validacion_html()
     reg.llenar("   ", correo_unico("nom"), "", "abc123").enviar()
     evidencia("respuesta_del_servidor")
-    assert "registrado=1" not in driver.current_url, "HALLAZGO: el servidor aceptó un nombre vacío"
+    assert "registrado=1" not in driver.current_url, "HALLAZGO H-02: el servidor aceptó un nombre vacío"
+    assert "nombre es obligatorio" in reg.mensaje_error()
