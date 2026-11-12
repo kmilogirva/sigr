@@ -1,8 +1,9 @@
 @page "/login"
+@layout Layout.AuthLayout
 
 <PageTitle>Iniciar sesión</PageTitle>
-<div class="row justify-content-center mt-4"><div class="col-md-5">
-    <h1 class="mb-3">Iniciar sesión</h1>
+<div>
+    <h1 class="h3 fw-bold mb-3">Iniciar sesión</h1>
     @if (Error == "1") { <div class="alert alert-danger">Correo o contraseña incorrectos.</div> }
     @if (Registrado == "1") { <div class="alert alert-success">Registro exitoso. Ya puedes iniciar sesión.</div> }
     <form method="post" action="/account/login">
@@ -16,7 +17,7 @@
     </form>
     <p class="mt-3">¿Cliente nuevo? <a href="registro">Regístrate</a></p>
     <p class="text-muted small">Demo: admin@sigr.test · carlos.mesero@sigr.test · maria.lopez@correo.test — clave <code>Sigr2026!</code></p>
-</div></div>
+</div>
 
 @code {
     [SupplyParameterFromQuery] public string? Error { get; set; }

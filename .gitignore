@@ -482,3 +482,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Evidencia generada por las pruebas automatizadas
+tests/evidencia/
+.pytest_cache/
