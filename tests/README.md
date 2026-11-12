@@ -57,16 +57,12 @@ Los tests de registro crean usuarios con correo `qa.*`; al terminar la sesión s
 | S-01 | Inyección SQL en el login (3 cargas) | Rechazo sin autenticar |
 | S-02 | Rutas protegidas sin sesión (5 rutas) | Redirección a `/login` conservando `ReturnUrl` |
 | S-03 | Cliente abre pantalla de Administrador | Acceso denegado |
-| S-04 | Correo sin formato válido saltando el navegador | El servidor debe rechazarlo |
-| S-05 | Nombre vacío o solo espacios saltando el navegador | El servidor debe rechazarlo |
+| S-04 | Correo sin formato válido saltando el navegador | El servidor lo rechaza con mensaje (H-01) |
+| S-05 | Nombre vacío o solo espacios saltando el navegador | El servidor lo rechaza con mensaje (H-02) |
+| S-06 | Avanzar un pedido sin ítems | Se rechaza: «el pedido no tiene ítems» (H-03) |
 
 ## Diseño de casos (API)
 18 peticiones y 40 aserciones en `postman/`: menú público (API-01 a 05, con variables encadenadas), login y logout (API-06 a 09, 11, 17), autorización 401/403 (API-06, 10, 18), reportes y valores límite (API-12 a 16).
 
 ## Hallazgos de la auditoría
-| ID | Severidad | Hallazgo | Evidencia |
-|---|---|---|---|
-| H-01 | Media | El servidor acepta un registro con correo sin formato válido: la validación existe solo en el navegador (`type=email`) | `test_s04_*` falla |
-| H-02 | Media | El servidor acepta un registro con nombre vacío o de solo espacios: solo existe `required` en el navegador | `test_s05_*` falla |
-
-Los dos tests que fallan son **intencionales**: documentan defectos reales de `POST /account/register` y deben pasar a verde cuando se agregue validación en el servidor.
+Registro completo en [`docs/HALLAZGOS.md`](../docs/HALLAZGOS.md). H-01, H-02 y H-03 se detectaron con estas pruebas y se corrigieron en `fix/validacion-registro`: los tests S-04, S-05 y S-06 pasaron de rojo a verde (Selenium: 26 de 26).

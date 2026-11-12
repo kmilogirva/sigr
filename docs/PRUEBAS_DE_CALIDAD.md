@@ -52,12 +52,12 @@ Detalle de casos y marcas (`humo`, `seguridad`) en [`tests/README.md`](../tests/
 ## Resultados vigentes (11/11/2026, contenedores Linux, base limpia)
 | Prueba | Resultado | Detalle |
 |---|---|---|
-| Selenium (25 casos) | **23 pasan, 2 fallan** | Los 2 fallos son los hallazgos H-01 y H-02 (intencionales). Duración: 76 s |
+| Selenium (26 casos) | **26 pasan, 0 fallan** | Tras corregir H-01, H-02 y H-03 (antes: 23 pasan y 2 fallan, de 25 casos). Duración: 56 s |
 | Newman (18 peticiones) | **40 aserciones, 0 fallos** | Promedio ~42 ms por petición |
 | k6 (carga hasta 20 usuarios, 52 s) | **0 % de errores, 100 % de verificaciones** | 600 iteraciones, 2.421 peticiones. p95 lecturas: **4,6 ms** · p95 login: **87 ms** |
 | ZAP baseline | **0 fallos, 11 advertencias, 57 reglas superadas** | Advertencias H-05, H-06 y H-07 |
 
-Los resultados en Windows (contra la app local) coinciden: Selenium 23/2 y Newman 18/40/0.
+Antes de la fase 1, los resultados en Windows (contra la app local) coincidían con los de Linux: Selenium 23/2 y Newman 18/40/0.
 
 ### Umbrales de aceptación (k6)
 | Métrica | Umbral | Resultado |

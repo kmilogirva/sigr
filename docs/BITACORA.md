@@ -32,7 +32,8 @@ Cronología de lo realizado, con las ramas y los commits de cada hito. Para el d
 | Corrección del login ante hashes inválidos (H-04) | `feature/dockerizacion` · `4865555` |
 | Dockerización con contenedores Linux | `feature/dockerizacion` · `7184b20`, merge `0c011b3` |
 | Primera ejecución en contenedores: Selenium 23/2, Newman 40/0, k6 sin errores, ZAP 0 fallos y 11 advertencias | evidencia en `tests/evidencia/` |
-| Documentación académica | `docs/documentacion-academica` |
+| Documentación académica | `docs/documentacion-academica` · `1f935e6` |
+| **Fase 1:** corrección de H-01, H-02 y H-03; Selenium pasa de 23/2 a 26/0 | `fix/validacion-registro` · `c70e5fd`, `ef3ba31` |
 
 ## Próximos pasos
 Ver el estado fase por fase en [PLAN_ENTREGA_2.md](PLAN_ENTREGA_2.md). Lo siguiente en el camino mínimo: **fase 1** (corregir H-01 a H-03), **fase 3** (pruebas unitarias) y **fase 5** (integración continua).
