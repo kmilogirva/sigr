@@ -2,6 +2,7 @@
 #
 #   Levantar el sistema:      docker compose up -d --build
 #   Pruebas funcionales (UI): docker compose --profile tests run --rm selenium-tests
+#   Pruebas E2E Playwright:   docker compose --profile tests run --rm playwright-tests
 #   Pruebas de API:           docker compose --profile tests run --rm newman
 #   Escaneo de seguridad:     docker compose --profile security run --rm zap
 #   Pruebas de rendimiento:   docker compose --profile performance run --rm k6
@@ -82,6 +83,20 @@ services:
     environment:
       SIGR_BASE_URL: http://web:8080
       SIGR_HEADLESS: "1"
+    volumes:
+      - ./tests/evidencia:/tests/evidencia
+
+  # ---------- Pruebas E2E con Playwright (Python + Chromium) ----------
+  playwright-tests:
+    profiles: ["tests"]
+    build: ./tests/playwright
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      SIGR_BASE_URL: http://web:8080
+    init: true
+    ipc: host
     volumes:
       - ./tests/evidencia:/tests/evidencia
 
