@@ -109,6 +109,43 @@ def tiempos(xml):
     return [(tc.get("name"), float(tc.get("time"))) for tc in ET.parse(xml).getroot().iter("testcase")]
 
 
+def zap_conteo(log):
+    t = Path(log).read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"WARN-NEW: (\d+).*?PASS: (\d+)", t)
+    return (int(m.group(2)), int(m.group(1))) if m else (0, 0)
+
+
+def zap_riesgos(html):
+    t = Path(html).read_text(encoding="utf-8", errors="replace")
+    i = t.find("Summary of Alerts")
+    bloque = t[i:i + 2500]
+    res = {}
+    for nivel in ("High", "Medium", "Low", "Informational"):
+        m = re.search(nivel + r"</div>\s*</td>\s*<td[^>]*>\s*<div>(\d+)</div>", bloque)
+        res[nivel] = int(m.group(1)) if m else 0
+    return res
+
+
+def grafico_zap_antes_despues():
+    antes, despues = EV / "zap" / "informe_zap_antes.html", EV / "zap" / "informe_zap.html"
+    if not (antes.exists() and despues.exists()):
+        return
+    a, d = zap_riesgos(antes), zap_riesgos(despues)
+    niveles = ["High", "Medium", "Low", "Informational"]
+    etq = ["Alto", "Medio", "Bajo", "Informativo"]
+    fig, ax = plt.subplots(figsize=(7.5, 3.6))
+    x = range(len(niveles))
+    ax.bar([i - 0.2 for i in x], [a[n] for n in niveles], 0.4, label="Antes (línea base)", color=RED)
+    ax.bar([i + 0.2 for i in x], [d[n] for n in niveles], 0.4, label="Después (con cabeceras y CSP)", color=GREEN)
+    for i, n in enumerate(niveles):
+        ax.text(i - 0.2, a[n] + 0.15, str(a[n]), ha="center", fontsize=9)
+        ax.text(i + 0.2, d[n] + 0.15, str(d[n]), ha="center", fontsize=9)
+    ax.set_xticks(list(x)); ax.set_xticklabels(etq); ax.set_ylabel("Alertas de OWASP ZAP")
+    ax.legend(frameon=False); ax.spines[["top", "right"]].set_visible(False); ax.grid(axis="y", alpha=.25)
+    fig.savefig(OUT / "grafico_zap_antes_despues.png", dpi=200, bbox_inches="tight"); plt.close(fig)
+    print("figura grafico_zap_antes_despues.png", a, d)
+
+
 def grafico_resultados():
     sel = tiempos(EV / "selenium" / "resultados.xml")
     pw = tiempos(EV / "playwright" / "resultados.xml")
@@ -278,6 +315,7 @@ if __name__ == "__main__":
     grafico_resultados()
     grafico_comparacion()
     grafico_k6()
+    grafico_zap_antes_despues()
     unitarias()
     captura_zap()
     copiar_capturas()
