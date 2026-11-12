@@ -53,8 +53,8 @@ def texto_a_imagen(lineas, destino, titulo, ancho=1250):
         # La fuente de consola no trae estos símbolos: se sustituyen por equivalentes
         ln = ln.replace("✓", "√").replace("✗", "x").replace("█", "#").replace("↳", "->")
         color = "#d4d4d4"
-        if re.search(r"PASSED|\d+ passed|√|\bOK\b", ln): color = "#6ad48b"
-        if re.search(r"\bFAILED\b|\d+ failed|x '|FAIL-NEW: [1-9]", ln): color = "#f48771"
+        if re.search(r"PASSED|\bPassed\b|\d+ passed|√|\bOK\b", ln): color = "#6ad48b"
+        if re.search(r"\bFAILED\b|\bFailed\b|\d+ failed|x '|FAIL-NEW: [1-9]", ln): color = "#f48771"
         if re.search(r"WARN", ln): color = "#e5c07b"
         d.text((14, y), ln[:150], fill=color, font=fuente)
         y += alto_linea
