@@ -27,7 +27,7 @@ Se aplica la **pirámide de pruebas**: muchas pruebas rápidas y baratas en la b
 | Cobertura | Coverlet | Líneas cubiertas por las pruebas unitarias | `tests/SIGR.Tests/` | ✅ Medida (global 9,4 %) |
 | Mutación | Stryker.NET | ¿Las pruebas detectan cambios en el código? | — | ⏳ Pendiente (se hizo una prueba de regresión manual, ver abajo) |
 | Accesibilidad | axe-core / Lighthouse | Contraste, etiquetas, teclado | — | ⏳ Pendiente |
-| Integración continua | GitHub Actions | Ejecutar todo en cada Pull Request | — | ⏳ Pendiente |
+| Integración continua | GitHub Actions | Ejecutar todo en cada Pull Request | `.github/workflows/ci.yml` | ✅ Hecho (PR #8, en verde) |
 
 ## Cómo ejecutarlas
 
@@ -60,12 +60,12 @@ Detalle de casos y marcas (`humo`, `seguridad`) en [`tests/README.md`](../tests/
 ## Resultados vigentes (11/11/2026, contenedores Linux, base limpia)
 | Prueba | Resultado | Detalle |
 |---|---|---|
-| Selenium (26 casos) | **26 pasan, 0 fallan** | Tras corregir H-01, H-02 y H-03 (antes: 23 pasan y 2 fallan, de 25 casos). Duración: 56 s |
-| xUnit (102 pruebas unitarias) | **102 pasan, 0 fallan** | Duración: ~1 s. Cobertura global 9,4 % (ver abajo) |
-| Playwright (16 casos) | **16 pasan, 0 fallan** | Incluye el flujo del carrito (carrito → mesa → pedido → cancelación). Duración: 28 s |
+| Selenium (26 casos) | **26 pasan, 0 fallan** | Tras corregir H-01, H-02 y H-03 (antes: 23 pasan y 2 fallan, de 25 casos). Duración: 67 s |
+| xUnit (126 pruebas unitarias) | **126 pasan, 0 fallan** | Duración: ~1 s. Cobertura global 10,0 % (ver abajo) |
+| Playwright (23 casos) | **23 pasan, 0 fallan** | Incluye el flujo del carrito y las cabeceras de seguridad. Duración: 34 s |
 | Newman (18 peticiones) | **40 aserciones, 0 fallos** | Promedio ~42 ms por petición |
 | k6 (carga hasta 20 usuarios, 52 s) | **0 % de errores, 100 % de verificaciones** | 600 iteraciones, 2.421 peticiones. p95 lecturas: **4,6 ms** · p95 login: **87 ms** |
-| ZAP baseline | **0 fallos, 11 advertencias, 57 reglas superadas** | El informe clasifica las alertas en 0 altas, 5 medias, 6 bajas y 7 informativas. Corresponden a H-05, H-06 y H-07 |
+| ZAP baseline | **0 fallos, 7 advertencias, 61 reglas superadas** | Antes de las correcciones: 11 advertencias y 57 superadas (0 altas, 5 medias, 6 bajas, 7 informativas). Ahora: 0, 2, 1 y 7 |
 
 Antes de la fase 1, los resultados en Windows (contra la app local) coincidían con los de Linux: Selenium 23/2 y Newman 18/40/0.
 

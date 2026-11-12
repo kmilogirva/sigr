@@ -41,5 +41,9 @@ Cronología de lo realizado, con las ramas y los commits de cada hito. Para el d
 
 | **Fase 3:** 102 pruebas unitarias con xUnit, NSubstitute, FluentAssertions y Bogus; cobertura con Coverlet; regresión de H-01/H-02 demostrada | `test/unitarias` |
 
+| **Fase 8:** cabeceras de seguridad, CSP, iconos locales y ruta de retorno segura; ZAP de 11 a 7 advertencias | `fix/cabeceras-seguridad` · `63939de` |
+| **Fase 5:** pipeline de GitHub Actions; primera ejecución roja por nombres de captura y segunda verde | `ci/github-actions` · PR #8 |
+| **Informe PDF** de 13 páginas sin portada | `docs/Taller_Automatizacion_JuanCamiloGiraldoValencia.pdf` (local) |
+
 ## Próximos pasos
 Ver el estado fase por fase en [PLAN_ENTREGA_2.md](PLAN_ENTREGA_2.md). Lo siguiente en el camino mínimo: **fase 1** (corregir H-01 a H-03), **fase 3** (pruebas unitarias) y **fase 5** (integración continua).
