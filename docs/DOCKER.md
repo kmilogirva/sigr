@@ -53,7 +53,7 @@ docker compose down -v          # -v borra también los volúmenes
 Usuarios ficticios (clave `Sigr2026!`): `admin@sigr.test`, `carlos.mesero@sigr.test`, `maria.lopez@correo.test`, `cocina@sigr.test`.
 
 ## Cómo interpretar los resultados
-- **Selenium:** 2 casos fallan **a propósito** (`S-04` y `S-05`): documentan los hallazgos H-01 y H-02 del registro. El resto debe pasar.
+- **Selenium:** los 26 casos deben pasar. (Antes de la fase 1, `S-04` y `S-05` fallaban a propósito por los hallazgos H-01 y H-02.)
 - **Newman:** 18 peticiones y 40 aserciones, todas en verde.
 - **ZAP:** el escaneo base es *pasivo* (no ataca); revisa en el informe las advertencias, por ejemplo cabeceras de seguridad ausentes. Se ejecuta con `-I`, por lo que las advertencias no hacen fallar el comando.
 - **k6:** los umbrales (`thresholds`) están en `tests/k6/carga.js`: menos del 1 % de errores, p95 de lecturas < 500 ms y p95 de login < 1500 ms. Si alguno se incumple, k6 termina con error.

@@ -65,7 +65,7 @@ Mapa de lo que pide el curso, dónde está la evidencia y qué falta. Sirve para
 
 ### Checklist de cierre
 - [ ] Nombre del grupo, integrantes y fecha definidos
-- [ ] Hallazgos H-01 a H-03 corregidos y sus pruebas en verde
+- [x] Hallazgos H-01 a H-03 corregidos y sus pruebas en verde (Selenium 26/26)
 - [ ] Pruebas unitarias e integración con resultados
 - [ ] Pipeline de integración continua ejecutado (verde y rojo)
 - [ ] Informe en APA con figuras y tablas numeradas
