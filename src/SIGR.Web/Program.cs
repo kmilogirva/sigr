@@ -45,6 +45,13 @@ builder.Services.AddScoped<CajaService>();
 
 var app = builder.Build();
 
+// Cultura fija es-CO: moneda, números y fechas se ven igual en Windows, Linux y Docker
+// (un contenedor Linux usa la cultura invariante y mostraría «¤4,500» en lugar de «$ 4.500»).
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("es-CO")
+    .AddSupportedCultures("es-CO")
+    .AddSupportedUICultures("es-CO"));
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
