@@ -14,5 +14,6 @@ Registro breve de decisiones de diseño y de proceso, con su motivo y sus consec
 | D-08 | La siembra de la clave de demostración se activa con **`Demo__SembrarPasswords`** | No depender de `Development` en entornos de QA; no debe estar activa en producción | El login repara hashes ficticios al vuelo si el modo demo está activo |
 | D-09 | Los hallazgos H-01 y H-02 se dejaron abiertos a propósito y se corrigieron en la fase 1 | Demostrar el ciclo rojo → verde: la prueba que detecta el defecto es la que confirma la corrección | S-04 y S-05 pasaron de rojo a verde (`c70e5fd`) |
 | D-10 | Selenium se mantiene y se **suma Playwright** para comparar | Evidenciar criterios de elección entre herramientas | Dos suites de interfaz con tablas comparativas en el informe |
+| D-13 | Cultura **es-CO fija** en la aplicación (`UseRequestLocalization`) | El formato de moneda y fechas no debe depender del sistema operativo (H-08) | Idéntico resultado en Windows, Linux y Docker |
 | D-11 | Los **PDF de entregas no se versionan** | Son entregables locales y pesan varios MB | `docs/*.pdf` está en `.gitignore` |
 | D-12 | La evidencia generada (`tests/evidencia/`) **no se versiona** | Se regenera con un comando y cambia en cada ejecución | La documentación indica cómo reproducirla |

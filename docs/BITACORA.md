@@ -35,5 +35,7 @@ Cronología de lo realizado, con las ramas y los commits de cada hito. Para el d
 | Documentación académica | `docs/documentacion-academica` · `1f935e6` |
 | **Fase 1:** corrección de H-01, H-02 y H-03; Selenium pasa de 23/2 a 26/0 | `fix/validacion-registro` · `c70e5fd`, `ef3ba31` |
 
+| **Fase 7:** pruebas E2E con Playwright (16 casos, 16 pasan), comparación con Selenium y cultura es-CO fija | `test/e2e-playwright` |
+
 ## Próximos pasos
 Ver el estado fase por fase en [PLAN_ENTREGA_2.md](PLAN_ENTREGA_2.md). Lo siguiente en el camino mínimo: **fase 1** (corregir H-01 a H-03), **fase 3** (pruebas unitarias) y **fase 5** (integración continua).

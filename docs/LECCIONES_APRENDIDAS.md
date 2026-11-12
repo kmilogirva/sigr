@@ -13,6 +13,7 @@ Errores y descubrimientos del proceso de automatización. Sirven de insumo para 
 | L-07 | Las pruebas de Selenium tardaban minutos o se colgaban | Procesos de Chrome huérfanos de una ejecución interrumpida | Cerrar siempre el navegador (`fixture`) y no matar procesos por nombre de forma indiscriminada |
 | L-08 | Al abrir `reporte.html` de pytest-html la tabla salía vacía | El informe se renderiza con JavaScript desde `file://` | Para el informe académico se generó una tabla propia desde el XML |
 | L-09 | La prueba S-06 fallaba con `StaleElementReference` y luego con «timeout» al crear un pedido | Blazor Server vuelve a pintar el formulario al conectar su circuito; un cambio hecho antes se pierde | El Page Object repite la selección hasta que el botón se habilita: esperar al **estado** de la UI, no solo a que exista el elemento |
+| L-10 | Los precios salían como `¤4.500` en Docker pero bien en Windows | La cultura del proceso en un contenedor Linux es la invariante; el formato de moneda dependía del sistema operativo | Un entorno nuevo revela supuestos ocultos: la cultura debe fijarse en la aplicación (H-08) |
 
 ## Buenas prácticas que quedaron
 - Probar la **capa del servidor** saltándose el navegador (`noValidate`), no solo lo que ve el usuario.

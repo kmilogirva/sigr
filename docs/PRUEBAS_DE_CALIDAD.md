@@ -17,13 +17,13 @@ Se aplica la **pirámide de pruebas**: muchas pruebas rápidas y baratas en la b
 ## Matriz de pruebas
 | Tipo | Herramienta | Qué cubre | Código | Estado |
 |---|---|---|---|---|
-| Funcional de interfaz | Selenium + pytest (Page Object) | Login, registro, control de acceso por rol, cierre de sesión | `tests/selenium/` | ✅ Hecho |
+| Funcional de interfaz | Selenium + pytest (Page Object) | Login, registro, pedidos del mesero, control de acceso por rol, cierre de sesión | `tests/selenium/` | ✅ Hecho |
 | API REST | Postman + Newman | Menú público, login/logout, autorización 401/403, reportes y valores límite | `tests/postman/` | ✅ Hecho |
 | Rendimiento | k6 | Humo (1 usuario) y carga (20 usuarios) sobre lecturas, login y reportes | `tests/k6/carga.js` | ✅ Hecho |
 | Seguridad | OWASP ZAP (baseline pasivo) | Cabeceras, cookies, recursos externos, reflexión | contenedor `zap` | ✅ Hecho (correcciones pendientes) |
 | Unitarias | xUnit, NSubstitute, FluentAssertions | `PagoService` (descuento, propina, cupón), `Validaciones`, flujo de estados | — | ⏳ Pendiente |
 | Integración | WebApplicationFactory, Testcontainers | Servicios y API contra una base limpia | — | ⏳ Pendiente |
-| E2E moderno | Playwright | Login y flujo del carrito de pedido | — | ⏳ Pendiente |
+| E2E moderno | Playwright (Python) | Login, control de acceso por 4 roles y flujo completo del carrito de pedido del cliente | `tests/playwright/` | ✅ Hecho |
 | Cobertura y mutación | Coverlet, ReportGenerator, Stryker.NET | Calidad de las pruebas | — | ⏳ Pendiente |
 | Accesibilidad | axe-core / Lighthouse | Contraste, etiquetas, teclado | — | ⏳ Pendiente |
 | Integración continua | GitHub Actions | Ejecutar todo en cada Pull Request | — | ⏳ Pendiente |
@@ -34,6 +34,7 @@ Se aplica la **pirámide de pruebas**: muchas pruebas rápidas y baratas en la b
 ```bash
 docker compose up -d --build                                  # sistema + base de datos
 docker compose --profile tests run --rm selenium-tests        # interfaz   -> tests/evidencia/selenium/
+docker compose --profile tests run --rm playwright-tests      # E2E       -> tests/evidencia/playwright/
 docker compose --profile tests run --rm newman                # API        -> tests/evidencia/postman/
 docker compose --profile security run --rm zap                # seguridad  -> tests/evidencia/zap/
 docker compose --profile performance run --rm k6              # rendimiento-> tests/evidencia/k6/
@@ -53,6 +54,7 @@ Detalle de casos y marcas (`humo`, `seguridad`) en [`tests/README.md`](../tests/
 | Prueba | Resultado | Detalle |
 |---|---|---|
 | Selenium (26 casos) | **26 pasan, 0 fallan** | Tras corregir H-01, H-02 y H-03 (antes: 23 pasan y 2 fallan, de 25 casos). Duración: 56 s |
+| Playwright (16 casos) | **16 pasan, 0 fallan** | Incluye el flujo del carrito (carrito → mesa → pedido → cancelación). Duración: 28 s |
 | Newman (18 peticiones) | **40 aserciones, 0 fallos** | Promedio ~42 ms por petición |
 | k6 (carga hasta 20 usuarios, 52 s) | **0 % de errores, 100 % de verificaciones** | 600 iteraciones, 2.421 peticiones. p95 lecturas: **4,6 ms** · p95 login: **87 ms** |
 | ZAP baseline | **0 fallos, 11 advertencias, 57 reglas superadas** | Advertencias H-05, H-06 y H-07 |
@@ -66,6 +68,27 @@ Antes de la fase 1, los resultados en Windows (contra la app local) coincidían 
 | Verificaciones (`checks`) | > 99 % | 100 % ✅ |
 | p95 de lecturas públicas | < 500 ms | 4,6 ms ✅ |
 | p95 de login | < 1.500 ms | 87 ms ✅ |
+
+## Comparación Selenium vs Playwright
+Mismo sistema, mismo contenedor Linux y mismo Chromium. Tiempos medidos por caso (promedio, en segundos):
+
+| Caso equivalente | Selenium 4.36 | Playwright 1.49 |
+|---|---|---|
+| Login válido por rol | 2,53 | 1,30 |
+| Credenciales inválidas | 2,07 | 1,59 |
+| Rutas protegidas sin sesión | 1,59 | 1,02 |
+| Cliente en pantalla de administrador | 1,81 | 0,90 |
+| Suite completa | 26 casos · 56,1 s | 16 casos · 28,0 s |
+
+| Aspecto | Selenium | Playwright |
+|---|---|---|
+| Esperas | Explícitas, escritas a mano (`WebDriverWait`) | Auto-espera integrada y aserciones con reintento (`expect`) |
+| Elementos obsoletos (`StaleElement`) | Frecuentes con Blazor; requirieron reintentos | No aparecen: los localizadores se resuelven en cada acción |
+| Evidencia | Capturas escritas a mano en cada paso | Capturas y **trazas** (`trace.zip`) automáticas al fallar |
+| Instalación en Docker | Chromium + chromedriver por `apt` | Imagen oficial con navegadores incluidos |
+| Circuito de Blazor | Requiere reintentos | También requiere un reintento al hacer clic (ver `MenuPage.agregar`) |
+
+**Conclusión:** para esta aplicación Playwright resultó más rápido y más estable, y con menos código de espera. Selenium sigue siendo válido y cubre más casos (registro y pedidos del mesero). La comparación por caso es la justa, porque las suites no tienen el mismo número de pruebas.
 
 ## Datos de prueba
 - Usuarios ficticios (clave `Sigr2026!`): `admin@sigr.test`, `carlos.mesero@sigr.test`, `maria.lopez@correo.test`, `cocina@sigr.test`.

@@ -31,7 +31,7 @@ La segunda entrega es la **continuación** del informe anterior: da solución a 
 | 4 | `test/integracion` | Servicios y API contra una base limpia | WebApplicationFactory, Testcontainers | Resultados y tiempos | ⏳ |
 | 5 | `ci/github-actions` | Pipeline: compilar, unitarias, integración, Selenium y Newman en cada PR | GitHub Actions + SQL Server | Captura del pipeline verde y de uno rojo | ⏳ |
 | 6 | `test/cobertura` | Cobertura y pruebas de mutación | Coverlet, ReportGenerator, Stryker.NET | Informe de cobertura | ⏳ |
-| 7 | `test/e2e-playwright` | Login y flujo del carrito; comparar con Selenium | Playwright | Trazas, capturas, tabla comparativa | ⏳ |
+| 7 | `test/e2e-playwright` | Login y flujo del carrito; comparar con Selenium | Playwright | Trazas, capturas, tabla comparativa | ✅ 16/16 en Linux; comparación en `PRUEBAS_DE_CALIDAD.md` |
 | 8 | `test/seguridad-zap` | Escaneo y corrección de hallazgos | OWASP ZAP, `dotnet list package --vulnerable` | Informe ZAP antes/después | 🔄 escaneo hecho; faltan correcciones (H-05, H-06, H-07) y dependencias |
 | 9 | `test/rendimiento-k6` | Humo, carga, estrés y reservas concurrentes | k6 | Gráficos de latencia y errores | 🔄 humo y carga hechos; faltan estrés y reservas concurrentes |
 | 10 | `test/accesibilidad` | Auditoría de accesibilidad (opcional) | axe-core / Lighthouse | Reporte con puntaje | ⏳ |

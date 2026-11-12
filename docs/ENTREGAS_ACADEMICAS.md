@@ -43,7 +43,7 @@ Mapa de lo que pide el curso, dónde está la evidencia y qué falta. Sirve para
 | 1. Introducción, objetivos y alcance (continuación del informe anterior) | 1,0 | Este documento |
 | 2. Sistema bajo prueba y entorno en contenedores | 1,5 | `DOCKER.md` |
 | 3. Estrategia y herramientas (pirámide de pruebas) | 1,0 | `PRUEBAS_DE_CALIDAD.md` |
-| 4. Pruebas funcionales de interfaz (Selenium y Playwright) | 2,0 | `tests/selenium/` |
+| 4. Pruebas funcionales de interfaz (Selenium y Playwright) | 2,0 | `tests/selenium/`, `tests/playwright/` |
 | 5. Pruebas de API (Newman y contrato OpenAPI) | 1,5 | `tests/postman/` |
 | 6. Pruebas unitarias y de integración | 2,0 | fases 3 y 4 |
 | 7. Seguridad (ZAP y dependencias) | 1,5 | `HALLAZGOS.md` |
