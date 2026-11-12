@@ -8,7 +8,7 @@
     @if (Registrado == "1") { <div class="alert alert-success">Registro exitoso. Ya puedes iniciar sesión.</div> }
     <form method="post" action="/account/login">
         <AntiforgeryToken />
-        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+        <input type="hidden" name="returnUrl" value="@(Validaciones.EsRutaLocalSegura(ReturnUrl) ? ReturnUrl : "")" />
         <div class="mb-3"><label class="form-label">Correo</label>
             <input name="email" type="email" class="form-control" required /></div>
         <div class="mb-3"><label class="form-label">Contraseña</label>
