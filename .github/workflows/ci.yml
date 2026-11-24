@@ -1,20 +1,34 @@
 name: CI
 
-# Se ejecuta en cada Pull Request hacia develop o main y en cada push a develop.
-# También se puede lanzar a mano (workflow_dispatch) para incluir seguridad y rendimiento.
+# Pipeline CI/CD de SIGR. Documentación y diagrama en docs/PIPELINE_CICD.md.
+#
+#   Pull Request hacia develop o main  ->  etapas 1 a 6  (integración continua)
+#   Push a develop, etiqueta v* o ejecución manual  ->  además 7 y 8 (staging) y, con aprobación, 9 (producción)
 on:
   pull_request:
     branches: [develop, main]
   push:
     branches: [develop]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      promover:
+        description: "Promover la imagen a producción (exige aprobación manual del entorno production)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+env:
+  IMAGEN: ghcr.io/${{ github.repository }}
+
 jobs:
-  # ---------- 1. Compilación y pruebas unitarias (rápidas, sin base de datos) ----------
+  # ---------- Etapas 2 y 3: compilación y pruebas unitarias (rápidas, sin base de datos) ----------
   unitarias:
     name: Compilar y pruebas unitarias
     runs-on: ubuntu-latest
@@ -41,11 +55,87 @@ jobs:
           name: resultados-unitarias
           path: resultados-unitarias
 
-  # ---------- 2. Pruebas de interfaz y API contra el sistema completo en contenedores Linux ----------
+  # ---------- Etapa 4: análisis estático y escaneo de dependencias ----------
+  analisis:
+    name: Análisis estático y dependencias
+    runs-on: ubuntu-latest
+    needs: unitarias
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Dependencias vulnerables (falla si encuentra alguna)
+        run: |
+          dotnet list SIGR.sln package --vulnerable --include-transitive 2>&1 | tee vulnerables.txt
+          if grep -q "has the following vulnerable packages" vulnerables.txt; then
+            echo "::error::Hay paquetes con vulnerabilidades conocidas; actualice la dependencia."
+            exit 1
+          fi
+
+      - name: Análisis estático con analizadores de Roslyn (umbral de avisos)
+        run: |
+          dotnet build src/SIGR.Web/SIGR.Web.csproj -c Release --no-incremental \
+            -p:EnableNETAnalyzers=true -p:AnalysisLevel=latest-recommended 2>&1 | tee analisis.txt
+          avisos=$(grep -E "^\s+[0-9]+ Warning\(s\)" analisis.txt | grep -oE "[0-9]+" | head -1)
+          avisos=${avisos:-0}
+          UMBRAL=10   # deuda técnica actual; el umbral solo puede bajar
+          {
+            echo "### Análisis estático"
+            echo "- Avisos de los analizadores: **$avisos** (umbral: $UMBRAL)"
+            echo "- Paquetes vulnerables: **0**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$avisos" -gt "$UMBRAL" ]; then
+            echo "::error::Los avisos ($avisos) superan el umbral ($UMBRAL)."
+            exit 1
+          fi
+
+      - name: Guardar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-analisis
+          path: |
+            vulnerables.txt
+            analisis.txt
+
+  # ---------- Etapa 5: empaquetar la imagen Docker (se publica solo fuera de los Pull Requests) ----------
+  empaquetar:
+    name: Empaquetar imagen Docker
+    runs-on: ubuntu-latest
+    needs: [unitarias, analisis]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Iniciar sesión en GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir (y publicar si no es un Pull Request)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.IMAGEN }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------- Etapa 6: pruebas de interfaz y API contra el sistema completo en contenedores Linux ----------
   e2e:
     name: Selenium, Playwright y Newman (contenedores)
     runs-on: ubuntu-latest
-    needs: unitarias
+    needs: [unitarias, empaquetar]
     steps:
       - uses: actions/checkout@v4
 
@@ -85,34 +175,97 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # ---------- 3. Seguridad y rendimiento (solo bajo demanda: tardan más) ----------
-  seguridad-y-rendimiento:
-    name: OWASP ZAP y k6 (manual)
+  # ---------- Etapas 7 y 8: despliegue a staging, prueba de humo, seguridad y carga ----------
+  staging:
+    name: Desplegar a staging y validar
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    needs: e2e
+    if: github.event_name != 'pull_request'
+    environment:
+      name: staging
+      url: http://localhost:8080
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SIGR_IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      COMPOSE: docker compose -f docker-compose.yml -f docker-compose.staging.yml
     steps:
       - uses: actions/checkout@v4
 
-      - name: Levantar sistema
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Desplegar la imagen publicada (sin recompilar)
         run: |
           mkdir -p tests/evidencia/zap tests/evidencia/k6
-          docker compose up -d --build web
-          for i in $(seq 1 60); do curl -fs http://localhost:8080/health && break; sleep 3; done
+          $COMPOSE pull web
+          $COMPOSE up -d --no-build web
+          for i in $(seq 1 60); do
+            curl -fs http://localhost:8080/health && break
+            sleep 3
+          done
+
+      - name: Prueba de humo
+        run: |
+          curl -fsS http://localhost:8080/health
+          echo
+          curl -fsS -o /dev/null -w "GET /api/platos -> HTTP %{http_code}\n" http://localhost:8080/api/platos
 
       - name: OWASP ZAP (escaneo base)
-        run: docker compose --profile security run --rm zap
+        run: $COMPOSE --profile security run --rm zap
 
       - name: k6 (carga)
         if: always()
-        run: docker compose --profile performance run --rm k6
+        run: $COMPOSE --profile performance run --rm k6
 
       - name: Guardar evidencia
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: evidencia-seguridad-rendimiento
+          name: evidencia-staging
           path: tests/evidencia
+
+      - name: Registros de la aplicación
+        if: failure()
+        run: $COMPOSE logs web
 
       - name: Apagar
         if: always()
-        run: docker compose down -v
+        run: $COMPOSE down -v
+
+  # ---------- Etapa 9: producción (exige la aprobación manual del entorno "production") ----------
+  produccion:
+    name: Promover a producción
+    runs-on: ubuntu-latest
+    needs: staging
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.promover)
+    environment:
+      name: production
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promover la imagen verificada (misma imagen que pasó por staging)
+        run: |
+          ORIGEN="$IMAGEN:sha-${{ github.sha }}"
+          VERSION="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'produccion' }}"
+          docker pull "$ORIGEN"
+          docker tag "$ORIGEN" "$IMAGEN:$VERSION"
+          docker tag "$ORIGEN" "$IMAGEN:produccion"
+          docker push "$IMAGEN:$VERSION"
+          docker push "$IMAGEN:produccion"
+          {
+            echo "### Promoción a producción"
+            echo "- Imagen: \`$ORIGEN\`"
+            echo "- Etiquetas publicadas: \`$VERSION\`, \`produccion\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,15 @@
+# SIGR — sobrescritura para el entorno de STAGING.
+#
+# En staging la aplicación NO se compila: se descarga la imagen ya verificada y publicada
+# por el pipeline (etapa "Empaquetar"). Así lo que se prueba es exactamente lo que se promueve.
+#
+#   export SIGR_IMAGE=ghcr.io/kmilogirva/sigr:sha-<commit>
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml pull web
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build web
+#
+# Más detalles en docs/PIPELINE_CICD.md.
+services:
+  web:
+    image: ${SIGR_IMAGE:?Defina SIGR_IMAGE con la imagen a desplegar}
+    pull_policy: always
+    restart: on-failure:3
