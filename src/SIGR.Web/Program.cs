@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SIGR.Web.Components;
 using SIGR.Web.Data;
 using SIGR.Web.Endpoints;
+using SIGR.Web.Seguridad;
 using SIGR.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,6 +82,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Demo:Se
     }
 }
 
+app.UseCabecerasSeguridad();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -96,8 +98,7 @@ app.MapPost("/account/login", async (HttpContext ctx, UsuarioService usuarios,
 
     await ctx.SignInAsync(ApiEndpoints.CrearPrincipal(u));
 
-    var destino = !string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//") && !returnUrl.StartsWith("/\\")
-        ? returnUrl : "/";
+    var destino = Validaciones.EsRutaLocalSegura(returnUrl) ? returnUrl! : "/";
     return Results.LocalRedirect(destino);
 });
 

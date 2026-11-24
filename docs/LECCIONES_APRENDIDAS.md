@@ -15,6 +15,7 @@ Errores y descubrimientos del proceso de automatización. Sirven de insumo para 
 | L-09 | La prueba S-06 fallaba con `StaleElementReference` y luego con «timeout» al crear un pedido | Blazor Server vuelve a pintar el formulario al conectar su circuito; un cambio hecho antes se pierde | El Page Object repite la selección hasta que el botón se habilita: esperar al **estado** de la UI, no solo a que exista el elemento |
 | L-10 | Los precios salían como `¤4.500` en Docker pero bien en Windows | La cultura del proceso en un contenedor Linux es la invariante; el formato de moneda dependía del sistema operativo | Un entorno nuevo revela supuestos ocultos: la cultura debe fijarse en la aplicación (H-08) |
 | L-11 | La cobertura global salió en 9,4 % aunque la lógica probada está al 100 % | Las páginas Razor y las consultas SQL (~70 % del código) no se prueban de forma unitaria | La cobertura debe leerse por capa, no como un solo número, y complementarse con integración y E2E |
+| L-12 | La primera ejecución del pipeline fue roja aunque todas las pruebas pasaron | Una captura se llamaba como el parámetro de la prueba (`javascript:alert(1)`) y `:` no es válido en el nombre de un artefacto | Los archivos que generan las pruebas deben tener nombres seguros en cualquier sistema de archivos |
 
 ## Buenas prácticas que quedaron
 - Probar la **capa del servidor** saltándose el navegador (`noValidate`), no solo lo que ve el usuario.

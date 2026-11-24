@@ -1,5 +1,7 @@
 # SIGR — Sistema Integral de Gestión de Restaurante
 
+[![CI](https://github.com/kmilogirva/sigr/actions/workflows/ci.yml/badge.svg)](https://github.com/kmilogirva/sigr/actions/workflows/ci.yml)
+
 Aplicación web (Blazor Web App, .NET 9, SQL Server + Dapper) para gestionar pedidos, reservas, menú, caja y reportes de ventas.
 
 ## Módulos de la línea base

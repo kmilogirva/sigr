@@ -29,13 +29,13 @@ La segunda entrega es la **continuación** del informe anterior: da solución a 
 | 2 | `feature/openapi` | Publicar el contrato OpenAPI/Swagger | Microsoft.AspNetCore.OpenApi | `openapi.json`, pantalla Swagger | ⏳ |
 | 3 | `test/unitarias` | Lógica pura: `PagoService`, `Validaciones`, flujo de estados | xUnit, NSubstitute, FluentAssertions, Bogus | Tabla de casos y resultados | ✅ 102 pruebas pasan; regresión demostrada (6 fallan contra el código anterior) |
 | 4 | `test/integracion` | Servicios y API contra una base limpia | WebApplicationFactory, Testcontainers | Resultados y tiempos | ⏳ |
-| 5 | `ci/github-actions` | Pipeline: compilar, unitarias, integración, Selenium y Newman en cada PR | GitHub Actions + SQL Server | Captura del pipeline verde y de uno rojo | ⏳ |
+| 5 | `ci/github-actions` | Pipeline: compilar, unitarias, integración, Selenium y Newman en cada PR | GitHub Actions + SQL Server | Captura del pipeline verde y de uno rojo | ✅ PR #8: primera ejecución roja (subida de artefactos) y segunda verde |
 | 6 | `test/cobertura` | Cobertura y pruebas de mutación | Coverlet, ReportGenerator, Stryker.NET | Informe de cobertura | 🔄 Coverlet medido (global 9,4 %); falta Stryker.NET |
 | 7 | `test/e2e-playwright` | Login y flujo del carrito; comparar con Selenium | Playwright | Trazas, capturas, tabla comparativa | ✅ 16/16 en Linux; comparación en `PRUEBAS_DE_CALIDAD.md` |
-| 8 | `test/seguridad-zap` | Escaneo y corrección de hallazgos | OWASP ZAP, `dotnet list package --vulnerable` | Informe ZAP antes/después | 🔄 escaneo hecho; faltan correcciones (H-05, H-06, H-07) y dependencias |
+| 8 | `test/seguridad-zap` | Escaneo y corrección de hallazgos | OWASP ZAP, `dotnet list package --vulnerable` | Informe ZAP antes/después | ✅ H-05, H-06 y H-07 corregidos; ZAP 11 → 7 advertencias; falta el análisis de dependencias |
 | 9 | `test/rendimiento-k6` | Humo, carga, estrés y reservas concurrentes | k6 | Gráficos de latencia y errores | 🔄 humo y carga hechos; faltan estrés y reservas concurrentes |
 | 10 | `test/accesibilidad` | Auditoría de accesibilidad (opcional) | axe-core / Lighthouse | Reporte con puntaje | ⏳ |
-| 11 | `docs/informe-entrega-2` | Informe APA consolidado (máx. 15 páginas sin portada) | PDF | El entregable | ⏳ |
+| 11 | `docs/informe-entrega-2` | Informe APA consolidado (máx. 15 páginas sin portada) | PDF | El entregable | ✅ 13 páginas sin portada (PDF local no versionado) |
 | 12 | `release/0.2.0` | Congelar versión, CHANGELOG y etiqueta | Git | Etiqueta `v0.2.0-qa` | ⏳ |
 
 ## Orden y dependencias
