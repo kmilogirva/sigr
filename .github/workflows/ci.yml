@@ -229,9 +229,12 @@ jobs:
           name: evidencia-staging
           path: tests/evidencia
 
-      - name: Registros de la aplicación
+      - name: Diagnóstico (registros de la aplicación y la base de datos, memoria y contenedores)
         if: failure()
-        run: $COMPOSE logs web
+        run: |
+          echo "::group::web"; $COMPOSE logs --tail 150 web; echo "::endgroup::"
+          echo "::group::db"; $COMPOSE logs --tail 200 db; echo "::endgroup::"
+          echo "::group::memoria y contenedores"; free -m; docker stats --no-stream; echo "::endgroup::"
 
       - name: Apagar
         if: always()
